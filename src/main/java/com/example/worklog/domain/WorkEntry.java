@@ -25,7 +25,7 @@ public class WorkEntry {
     @JoinColumn(name = "project_id", nullable = false)
     private Project project;
 
-    /** 施策名。例:「PVM脆弱性対応（8月）」。案件内のワークストリームにあたる。 */
+    /** 施策名。例:「脆弱性対応（8月）」。案件内のワークストリームにあたる。 */
     @Column(length = 200)
     private String workstream;
 
@@ -33,7 +33,7 @@ public class WorkEntry {
     @JoinColumn(name = "task_type_id", nullable = false)
     private TaskType taskType;
 
-    /** 対象。例:「feed_api：stg、content_api：stg」。リポジトリ名は数が多く変動するため自由記述。 */
+    /** 対象。例:「service_a：stg、service_b：stg」。リポジトリ名は数が多く変動するため自由記述。 */
     @Column(length = 500)
     private String targets;
 

@@ -26,7 +26,7 @@ class WorkContentFormatterTest {
         String text = formatter.formatDay(List.of(
                 new WorkEntry(date, projectA, "脆弱性対応（8月）", release, "service_a：stg、service_b：stg"),
                 new WorkEntry(date, projectA, "脆弱性対応（8月）", review, "service_c"),
-                new WorkEntry(date, projectB, "PVM対応", release, "service_d：prod")));
+                new WorkEntry(date, projectB, "月次点検", release, "service_d：prod")));
 
         assertThat(text).isEqualTo("""
                 ■やったこと
@@ -35,7 +35,7 @@ class WorkContentFormatterTest {
                 ・脆弱性対応（8月） レビュー依頼（service_c）
 
                 ▶ 案件B
-                ・PVM対応 リリース対応（service_d：prod）""");
+                ・月次点検 リリース対応（service_d：prod）""");
     }
 
     @Test
