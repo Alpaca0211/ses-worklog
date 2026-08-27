@@ -1,0 +1,13 @@
+# Docker 導入後に使うプロファイル:
+#   docker compose up -d
+#   mvnw spring-boot:run -Dspring-boot.run.profiles=postgres
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/worklog
+    username: worklog
+    password: worklog
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.PostgreSQLDialect

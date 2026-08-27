@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>日次業務ログ</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header>
+    <h1>日次業務ログ</h1>
+    <nav>
+        <a th:href="@{/}" class="active">ログ入力</a>
+        <a th:href="@{/terms}">禁止用語辞書</a>
+    </nav>
+    <div class="badges">
+        <span class="badge">辞書 <b th:text="${dictSize}">0</b> 件</span>
+        <span class="badge" th:classappend="${llmStatus.usable} ? 'ok' : 'warn'"
+              th:text="${llmStatus.label}">LLM</span>
+    </div>
+</header>
+
+<main>
+    <p class="flash" th:if="${message}" th:text="${message}"></p>
+
+    <form method="post" th:action="@{/logs}" th:object="${form}">
+        <label>
+            日付
+            <input type="date" th:field="*{workDate}">
+        </label>
+        <p class="error" th:if="${#fields.hasErrors('workDate')}" th:errors="*{workDate}"></p>
+
+        <label>
+            業務メモ（そのまま書いてください。固有名詞は後段で除去されます）
+            <textarea rows="5" th:field="*{rawText}"
+                      placeholder="例: A社決済APIのタイムアウト調査。原因はコネクションプール枯渇。田中さんに共有して来週修正PR出す"></textarea>
+        </label>
+        <p class="error" th:if="${#fields.hasErrors('rawText')}" th:errors="*{rawText}"></p>
+
+        <div class="actions">
+            <button type="submit" th:formaction="@{/preview}" class="secondary">秘匿化プレビュー</button>
+            <button type="submit">保存</button>
+        </div>
+    </form>
+
+    <section class="preview" th:if="${preview}">
+        <h2>秘匿化プレビュー</h2>
+        <p class="status">
+            処理結果: <b th:text="${preview.status().label}">-</b>
+            / 辞書置換 <b th:text="${preview.maskedCount()}">0</b> 件
+        </p>
+
+        <h3>① 辞書マスキング後（LLM への入力）</h3>
+        <pre th:text="${preview.maskedText()}"></pre>
+
+        <h3>② 最終出力（外部に出してよいのはこれだけ）</h3>
+        <pre class="output" th:text="${preview.outputText()}"></pre>
+
+        <div th:if="${!preview.hitTerms().isEmpty()}">
+            <h3>置換した用語</h3>
+            <ul class="chips">
+                <li th:each="e : ${preview.hitTerms()}">
+                    <span th:text="${e.key}">term</span> ×<span th:text="${e.value}">1</span>
+                </li>
+            </ul>
+        </div>
+
+        <div th:if="${!preview.riskHints().isEmpty()}">
+            <h3>辞書未登録の固有名詞候補</h3>
+            <p class="hint">検出されただけで、まだマスクされていません。必要なら辞書に登録してください。</p>
+            <ul class="risk">
+                <li th:each="h : ${preview.riskHints()}">
+                    <span class="type" th:text="${h.type()}">type</span>
+                    <code th:text="${h.value()}">value</code>
+                    <form method="post" th:action="@{/terms}" class="inline">
+                        <input type="hidden" name="term" th:value="${h.value()}">
+                        <input type="hidden" name="category" th:value="${h.suggestedCategory()}">
+                        <button type="submit" class="tiny">辞書に追加</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </section>
+
+    <section>
+        <h2>最近のログ</h2>
+        <p th:if="${logs.isEmpty()}" class="hint">まだログがありません。</p>
+        <ul class="logs">
+            <li th:each="l : ${logs}">
+                <a th:href="@{/logs/{id}(id=${l.id})}">
+                    <span class="date" th:text="${l.workDate}">2026-08-27</span>
+                    <span class="excerpt" th:text="${#strings.abbreviate(l.outputText, 80)}">...</span>
+                    <span class="tag" th:text="${l.status.label}">status</span>
+                </a>
+            </li>
+        </ul>
+    </section>
+</main>
+</body>
+</html>

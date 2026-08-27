@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ログ詳細</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header>
+    <h1>ログ詳細</h1>
+    <nav>
+        <a th:href="@{/}">ログ入力</a>
+        <a th:href="@{/terms}">禁止用語辞書</a>
+    </nav>
+</header>
+<main>
+    <p class="status">
+        <b th:text="${log.workDate}">date</b>
+        / <span th:text="${log.status.label}">status</span>
+        / 辞書置換 <span th:text="${log.maskedCount}">0</span> 件
+    </p>
+
+    <h3>最終出力</h3>
+    <pre class="output" th:text="${log.outputText}"></pre>
+
+    <h3>辞書マスキング後</h3>
+    <pre th:text="${log.maskedText}"></pre>
+
+    <details>
+        <summary>生入力を表示（機密を含みます。暗号化して保存されています）</summary>
+        <pre class="raw" th:text="${log.rawText}"></pre>
+    </details>
+
+    <div th:if="${log.riskHints}">
+        <h3>辞書未登録の固有名詞候補</h3>
+        <p class="hint" th:text="${log.riskHints}"></p>
+    </div>
+
+    <p><a th:href="@{/}">← 戻る</a></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: ses-worklog
+  profiles:
+    # 暗号鍵などマシン固有の設定は application-local.yml に置く（Git 管理外）
+    include: local
+
+  datasource:
+    # MVP は H2 ファイルDB。Docker 導入後は -Dspring.profiles.active=postgres で切り替える
+    url: jdbc:h2:file:./data/worklog
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  jpa:
+    hibernate:
+      # MVP 段階のみ。PostgreSQL へ移行する際に Flyway へ置き換える
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate.format_sql: true
+
+  thymeleaf:
+    cache: false
+
+server:
+  port: 8080
+  # 生ログを保持するため、既定ではループバックのみに公開する。
+  # スマホから入力したい場合のみ 0.0.0.0 に変更すること（README の注意事項を必ず読むこと）
+  address: 127.0.0.1
+
+worklog:
+  llm:
+    enabled: true
+    # OpenAI 互換エンドポイント（Ollama / vLLM / LM Studio）
+    base-url: http://localhost:11434/v1
+    api-key: local
+    # `ollama list` で表示される実際のタグに合わせること
+    model: qwen3.5:9b
+    temperature: 0.2
+    timeout-seconds: 120
+    # 思考モードの抑制。思考型モデルは既定で数千トークンを思考に費やし、
+    # 本文が出る前に文脈上限に達する（実測: 未指定 90 秒・本文空 / none 指定 1 秒）。
+    # reasoning_effort に対応しないサーバでは空文字にすると送信しない。
+    reasoning-effort: none
+
+logging:
+  level:
+    com.example.worklog: INFO

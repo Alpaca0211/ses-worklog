@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>禁止用語辞書</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header>
+    <h1>禁止用語辞書</h1>
+    <nav>
+        <a th:href="@{/}">ログ入力</a>
+        <a th:href="@{/terms}" class="active">禁止用語辞書</a>
+    </nav>
+</header>
+<main>
+    <p class="flash" th:if="${message}" th:text="${message}"></p>
+    <p class="error" th:if="${error}" th:text="${error}"></p>
+
+    <p class="hint">
+        ここに登録した語は、業務メモから決定論的に置換されます。LLM の判断は介在しません。
+    </p>
+
+    <form method="post" th:action="@{/terms}" class="row">
+        <input type="text" name="term" placeholder="禁止する語（例: サンプル商事）" required>
+        <input type="text" name="replacement" placeholder="置換後（空なら分類の既定値）">
+        <select name="category">
+            <option th:each="c : ${categories}" th:value="${c}" th:text="${c.label}">分類</option>
+        </select>
+        <button type="submit">登録</button>
+    </form>
+
+    <table>
+        <thead>
+        <tr><th>用語</th><th>置換後</th><th>分類</th><th>状態</th><th></th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="t : ${terms}" th:classappend="${t.enabled} ? '' : 'disabled'">
+            <td><code th:text="${t.term}">term</code></td>
+            <td th:text="${t.replacement}">replacement</td>
+            <td th:text="${t.category.label}">category</td>
+            <td th:text="${t.enabled} ? '有効' : '無効'">有効</td>
+            <td class="ops">
+                <form method="post" th:action="@{/terms/{id}/toggle(id=${t.id})}" class="inline">
+                    <button type="submit" class="tiny secondary">切替</button>
+                </form>
+                <form method="post" th:action="@{/terms/{id}/delete(id=${t.id})}" class="inline">
+                    <button type="submit" class="tiny danger">削除</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</main>
+</body>
+</html>
