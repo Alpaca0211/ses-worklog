@@ -30,6 +30,12 @@ server:
   address: 127.0.0.1
 
 worklog:
+  # 作業内容欄の書式。週報システムの仕様ではなく利用者独自の記法のため設定にしている
+  format:
+    daily-header: "■やったこと"
+    project-prefix: "▶ "
+    item-prefix: "・"
+
   llm:
     enabled: true
     # OpenAI 互換エンドポイント（Ollama / vLLM / LM Studio）

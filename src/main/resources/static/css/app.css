@@ -187,3 +187,30 @@ details { margin: 16px 0; }
 summary { cursor: pointer; color: var(--danger); font-size: 13px; }
 
 section.preview { border: 1px solid var(--accent); border-radius: 8px; padding: 4px 16px 16px; margin-top: 24px; }
+
+.daynav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin: 16px 0;
+    font-size: 14px;
+}
+
+.daynav a { color: var(--accent); text-decoration: none; }
+.daynav a:hover { text-decoration: underline; }
+.daynav input[type=date] { width: auto; margin: 0; }
+
+form.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    align-items: end;
+    margin: 12px 0 20px;
+}
+
+form.grid .actions { grid-column: 1 / -1; margin-top: 0; }
+
+.dayblock { margin-bottom: 20px; }
+.dayblock h3 { margin-bottom: 6px; }
+.dayblock .actions { margin-top: 6px; }

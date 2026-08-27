@@ -23,7 +23,12 @@ public class MaskingService {
         this.dictionary = dictionary;
     }
 
+    /** 既定は社外向け（全分類をマスク）。安全側に倒す。 */
     public MaskingResult mask(String input) {
+        return mask(input, MaskingProfile.EXTERNAL);
+    }
+
+    public MaskingResult mask(String input, MaskingProfile profile) {
         if (input == null || input.isEmpty()) {
             return new MaskingResult(input == null ? "" : input, Map.of(), 0);
         }
@@ -45,16 +50,15 @@ public class MaskingService {
             if (emit.getStart() < cursor) {
                 continue; // ignoreOverlaps でも念のため二重置換を防ぐ
             }
+            TermDictionary.TermInfo info = snap.terms().get(emit.getKeyword().toLowerCase());
+            if (info == null || !profile.masks(info.category())) {
+                continue; // このプロファイルでは伏せない分類
+            }
             sb.append(input, cursor, emit.getStart());
-
-            String keyword = emit.getKeyword();
-            String replacement = snap.replacements().getOrDefault(keyword.toLowerCase(), "（マスク）");
-            sb.append(replacement);
+            sb.append(info.replacement());
 
             // 元テキスト側の表記でカウントする（大文字小文字の揺れを可視化するため）
-            String original = input.substring(emit.getStart(), emit.getEnd() + 1);
-            hits.merge(original, 1, Integer::sum);
-
+            hits.merge(input.substring(emit.getStart(), emit.getEnd() + 1), 1, Integer::sum);
             cursor = emit.getEnd() + 1;
         }
         sb.append(input, cursor, input.length());
@@ -65,6 +69,10 @@ public class MaskingService {
 
     /** 出力に禁止用語が残っていないかの検査。残存していれば用語リストを返す。 */
     public List<String> detectLeaks(String text) {
+        return detectLeaks(text, MaskingProfile.EXTERNAL);
+    }
+
+    public List<String> detectLeaks(String text, MaskingProfile profile) {
         if (text == null || text.isEmpty()) {
             return List.of();
         }
@@ -73,6 +81,10 @@ public class MaskingService {
             return List.of();
         }
         return snap.trie().parseText(text).stream()
+                .filter(e -> {
+                    TermDictionary.TermInfo info = snap.terms().get(e.getKeyword().toLowerCase());
+                    return info != null && profile.masks(info.category());
+                })
                 .map(e -> text.substring(e.getStart(), e.getEnd() + 1))
                 .distinct()
                 .toList();
