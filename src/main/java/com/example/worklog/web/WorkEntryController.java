@@ -44,6 +44,7 @@ public class WorkEntryController {
         model.addAttribute("preview", formatter.formatDay(entries));
         model.addAttribute("projects", service.projects());
         model.addAttribute("taskTypes", service.taskTypes());
+        model.addAttribute("workstreams", service.workstreamSuggestions());
         model.addAttribute("allProjects", projectRepository.findAll());
         return "work-entries";
     }

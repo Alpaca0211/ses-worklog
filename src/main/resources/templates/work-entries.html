@@ -39,7 +39,11 @@
             </select>
         </label>
         <label>施策名（任意）
-            <input type="text" name="workstream" placeholder="例: 脆弱性対応（8月）">
+            <input type="text" name="workstream" list="workstream-options"
+                   placeholder="例: 脆弱性対応（8月）">
+            <datalist id="workstream-options">
+                <option th:each="w : ${workstreams}" th:value="${w}"></option>
+            </datalist>
         </label>
         <label>作業種別
             <select name="taskTypeId" required>

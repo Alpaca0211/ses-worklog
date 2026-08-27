@@ -33,6 +33,11 @@ public class WorkEntryService {
     }
 
     @Transactional(readOnly = true)
+    public List<String> workstreamSuggestions() {
+        return workEntryRepository.findDistinctWorkstreams();
+    }
+
+    @Transactional(readOnly = true)
     public List<WorkEntry> entriesOn(LocalDate date) {
         return workEntryRepository.findByWorkDateOrderByIdAsc(date);
     }
