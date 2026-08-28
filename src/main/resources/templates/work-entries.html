@@ -31,32 +31,38 @@
     </div>
 
     <h2>作業を追加</h2>
-    <form method="post" th:action="@{/work}" class="grid">
+    <form method="post" th:action="@{/work}">
         <input type="hidden" name="date" th:value="${date}">
-        <label>案件
-            <select name="projectId" required>
-                <option th:each="p : ${projects}" th:value="${p.id}" th:text="${p.name}">案件</option>
-            </select>
-        </label>
-        <label>施策名（任意）
-            <input type="text" name="workstream" list="workstream-options"
-                   placeholder="例: 脆弱性対応（8月）">
-            <datalist id="workstream-options">
-                <option th:each="w : ${workstreams}" th:value="${w}"></option>
-            </datalist>
-        </label>
-        <div class="checkfield">
-            <span class="checkfield-label">作業種別（複数選択可）</span>
+
+        <div class="fields">
+            <label>案件
+                <select name="projectId" required>
+                    <option th:each="p : ${projects}" th:value="${p.id}" th:text="${p.name}">案件</option>
+                </select>
+            </label>
+            <label>施策名（任意）
+                <input type="text" name="workstream" list="workstream-options"
+                       placeholder="例: 脆弱性対応（8月）">
+                <datalist id="workstream-options">
+                    <option th:each="w : ${workstreams}" th:value="${w}"></option>
+                </datalist>
+            </label>
+        </div>
+
+        <fieldset class="taskfield">
+            <legend>作業種別（複数選択可）</legend>
             <div class="checks">
                 <label th:each="t : ${taskTypes}" class="check">
                     <input type="checkbox" name="taskTypeIds" th:value="${t.id}">
                     <span th:text="${t.name}">種別</span>
                 </label>
             </div>
-        </div>
+        </fieldset>
+
         <label>対象（任意）
             <input type="text" name="targets" placeholder="例: service_a：stg、service_b：prod">
         </label>
+
         <div class="actions"><button type="submit">記録する</button></div>
     </form>
 
