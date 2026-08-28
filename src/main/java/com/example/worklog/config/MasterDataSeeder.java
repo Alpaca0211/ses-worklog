@@ -32,18 +32,20 @@ public class MasterDataSeeder {
                 log.info("案件マスタの雛形を投入しました。/work から自分の案件名に変更してください。");
             }
             if (taskTypes.count() == 0) {
+                // 並び順は作業の流れ順。複数選択したときの連結順がこの順になるため、
+                // 「PR作成/レビュー依頼」のように自然な順で出力される
                 taskTypes.saveAll(List.of(
-                        new TaskType("リリース対応", 1),
-                        new TaskType("レビュー依頼", 2),
-                        new TaskType("PR作成", 3),
-                        new TaskType("PR確認", 4),
-                        new TaskType("PRマージ", 5),
-                        new TaskType("PR修正", 6),
-                        new TaskType("チケット作成", 7),
-                        new TaskType("Issue作成", 8),
-                        new TaskType("動作確認", 9),
-                        new TaskType("ジョブ確認", 10),
-                        new TaskType("調査", 11),
+                        new TaskType("調査", 1),
+                        new TaskType("チケット作成", 2),
+                        new TaskType("Issue作成", 3),
+                        new TaskType("動作確認", 4),
+                        new TaskType("PR作成", 5),
+                        new TaskType("レビュー依頼", 6),
+                        new TaskType("PR確認", 7),
+                        new TaskType("PR修正", 8),
+                        new TaskType("PRマージ", 9),
+                        new TaskType("リリース対応", 10),
+                        new TaskType("ジョブ確認", 11),
                         new TaskType("バージョンアップ対応", 12)));
                 log.info("作業種別マスタを投入しました: {} 件", taskTypes.count());
             }

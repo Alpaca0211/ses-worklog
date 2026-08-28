@@ -44,13 +44,19 @@ public class WorkEntryService {
 
     @Transactional
     public WorkEntry add(LocalDate workDate, Long projectId, String workstream,
-                         Long taskTypeId, String targets) {
+                         List<Long> taskTypeIds, String targets) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("案件が見つかりません: " + projectId));
-        TaskType taskType = taskTypeRepository.findById(taskTypeId)
-                .orElseThrow(() -> new IllegalArgumentException("作業種別が見つかりません: " + taskTypeId));
+        if (taskTypeIds == null || taskTypeIds.isEmpty()) {
+            throw new IllegalArgumentException("作業種別を1つ以上選んでください。");
+        }
+        // 画面の並び順（＝マスタの表示順）を保つ。作業の流れ順に並ぶよう設計している
+        List<TaskType> taskTypes = taskTypeIds.stream()
+                .map(id -> taskTypeRepository.findById(id)
+                        .orElseThrow(() -> new IllegalArgumentException("作業種別が見つかりません: " + id)))
+                .toList();
         return workEntryRepository.save(
-                new WorkEntry(workDate, project, trim(workstream), taskType, trim(targets)));
+                new WorkEntry(workDate, project, trim(workstream), taskTypes, trim(targets)));
     }
 
     @Transactional

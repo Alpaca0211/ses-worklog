@@ -53,11 +53,15 @@ public class WorkEntryController {
     public String add(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                       @RequestParam Long projectId,
                       @RequestParam(required = false) String workstream,
-                      @RequestParam Long taskTypeId,
+                      @RequestParam(name = "taskTypeIds", required = false) List<Long> taskTypeIds,
                       @RequestParam(required = false) String targets,
                       RedirectAttributes ra) {
-        service.add(date, projectId, workstream, taskTypeId, targets);
-        ra.addFlashAttribute("message", "記録しました");
+        try {
+            service.add(date, projectId, workstream, taskTypeIds, targets);
+            ra.addFlashAttribute("message", "記録しました");
+        } catch (IllegalArgumentException e) {
+            ra.addFlashAttribute("error", e.getMessage());
+        }
         return "redirect:/work?date=" + date;
     }
 

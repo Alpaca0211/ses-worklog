@@ -51,14 +51,17 @@ public class WorkContentFormatter {
         return sb.toString().stripTrailing();
     }
 
-    /** 「施策名 作業種別（対象）」の 1 行。施策名・対象は未入力を許容する。 */
+    /**
+     * 「施策名 作業種別（対象）」の 1 行。施策名・対象は未入力を許容する。
+     * 作業種別が複数選択されている場合は「PR作成/レビュー依頼」のように連結する。
+     */
     private String formatItem(WorkEntry entry) {
         StringBuilder line = new StringBuilder();
         String workstream = trimToEmpty(entry.getWorkstream());
         if (!workstream.isEmpty()) {
             line.append(workstream).append(' ');
         }
-        line.append(entry.getTaskType().getName());
+        line.append(entry.getTaskTypeLabel());
 
         String targets = trimToEmpty(entry.getTargets());
         if (!targets.isEmpty()) {

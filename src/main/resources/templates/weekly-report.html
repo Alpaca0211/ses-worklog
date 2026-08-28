@@ -33,7 +33,10 @@
 
     <section>
         <h2>今週の実績（自動集計）</h2>
-        <p class="hint">構造化された作業記録を数えたものです。生成ではないため誤りが入りません。</p>
+        <p class="hint">
+            構造化された作業記録を数えたものです。生成ではないため誤りが入りません。
+            1件の記録に作業種別を複数付けられるため、種別ごとの合計は記録件数を上回ることがあります。
+        </p>
         <p th:if="${report.summary().isEmpty()}" class="hint">この週の作業記録はありません。</p>
         <div th:unless="${report.summary().isEmpty()}">
             <p class="status">

@@ -45,11 +45,15 @@
                 <option th:each="w : ${workstreams}" th:value="${w}"></option>
             </datalist>
         </label>
-        <label>作業種別
-            <select name="taskTypeId" required>
-                <option th:each="t : ${taskTypes}" th:value="${t.id}" th:text="${t.name}">種別</option>
-            </select>
-        </label>
+        <div class="checkfield">
+            <span class="checkfield-label">作業種別（複数選択可）</span>
+            <div class="checks">
+                <label th:each="t : ${taskTypes}" class="check">
+                    <input type="checkbox" name="taskTypeIds" th:value="${t.id}">
+                    <span th:text="${t.name}">種別</span>
+                </label>
+            </div>
+        </div>
         <label>対象（任意）
             <input type="text" name="targets" placeholder="例: service_a：stg、service_b：prod">
         </label>
@@ -66,7 +70,7 @@
         <tr th:each="e : ${entries}">
             <td th:text="${e.project.name}">案件</td>
             <td th:text="${e.workstream}">施策</td>
-            <td th:text="${e.taskType.name}">種別</td>
+            <td th:text="${e.taskTypeLabel}">種別</td>
             <td><code th:text="${e.targets}">対象</code></td>
             <td class="ops">
                 <form method="post" th:action="@{/work/{id}/delete(id=${e.id})}" class="inline">

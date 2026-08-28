@@ -72,16 +72,18 @@ public class WeeklyReportService {
     }
 
     private WeeklySummary summarize(ReportWeek week, List<WorkEntry> entries) {
-        List<WeeklySummary.CountItem> byTaskType = count(entries, e -> e.getTaskType().getName());
-        List<WeeklySummary.CountItem> byProject = count(entries, e -> e.getProject().getName());
+        // 1 記録が複数の作業種別を持ちうるため、種別の合計は記録件数を上回ることがある
+        List<WeeklySummary.CountItem> byTaskType = tally(entries.stream()
+                .flatMap(e -> e.getTaskTypes().stream().map(TaskType::getName)));
+        List<WeeklySummary.CountItem> byProject = tally(entries.stream()
+                .map(e -> e.getProject().getName()));
         int activeDays = (int) entries.stream().map(WorkEntry::getWorkDate).distinct().count();
         return new WeeklySummary(week, entries.size(), activeDays, byTaskType, byProject);
     }
 
-    private List<WeeklySummary.CountItem> count(List<WorkEntry> entries,
-                                                java.util.function.Function<WorkEntry, String> key) {
-        return entries.stream()
-                .collect(Collectors.groupingBy(key, LinkedHashMap::new, Collectors.counting()))
+    private List<WeeklySummary.CountItem> tally(java.util.stream.Stream<String> names) {
+        return names
+                .collect(Collectors.groupingBy(n -> n, LinkedHashMap::new, Collectors.counting()))
                 .entrySet().stream()
                 .map(e -> new WeeklySummary.CountItem(e.getKey(), e.getValue()))
                 .sorted((a, b) -> Long.compare(b.count(), a.count()))

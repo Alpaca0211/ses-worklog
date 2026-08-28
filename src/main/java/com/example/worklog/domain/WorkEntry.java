@@ -3,6 +3,8 @@ package com.example.worklog.domain;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 定型作業の記録。1 行が週報の作業内容欄の「・」1 項目に対応する。
@@ -29,9 +31,17 @@ public class WorkEntry {
     @Column(length = 200)
     private String workstream;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
-    @JoinColumn(name = "task_type_id", nullable = false)
-    private TaskType taskType;
+    /**
+     * 作業種別。同一対象に対して複数のアクションを行う日があるため複数持てる。
+     * 出力時は「PR作成/レビュー依頼」のように連結する。
+     * 順序を保持するのは、実際の記法が作業の流れ順に並んでいるため。
+     */
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "work_entry_task_type",
+            joinColumns = @JoinColumn(name = "work_entry_id"),
+            inverseJoinColumns = @JoinColumn(name = "task_type_id"))
+    @OrderColumn(name = "position")
+    private List<TaskType> taskTypes = new ArrayList<>();
 
     /** 対象。例:「service_a：stg、service_b：stg」。リポジトリ名は数が多く変動するため自由記述。 */
     @Column(length = 500)
@@ -44,11 +54,11 @@ public class WorkEntry {
     }
 
     public WorkEntry(LocalDate workDate, Project project, String workstream,
-                     TaskType taskType, String targets) {
+                     List<TaskType> taskTypes, String targets) {
         this.workDate = workDate;
         this.project = project;
         this.workstream = workstream;
-        this.taskType = taskType;
+        this.taskTypes = new ArrayList<>(taskTypes);
         this.targets = targets;
     }
 
@@ -68,8 +78,13 @@ public class WorkEntry {
         return workstream;
     }
 
-    public TaskType getTaskType() {
-        return taskType;
+    public List<TaskType> getTaskTypes() {
+        return taskTypes;
+    }
+
+    /** 画面表示用。「PR作成/レビュー依頼」の形。 */
+    public String getTaskTypeLabel() {
+        return taskTypes.stream().map(TaskType::getName).reduce((a, b) -> a + "/" + b).orElse("");
     }
 
     public String getTargets() {

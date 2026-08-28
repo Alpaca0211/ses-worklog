@@ -214,3 +214,25 @@ form.grid .actions { grid-column: 1 / -1; margin-top: 0; }
 .dayblock { margin-bottom: 20px; }
 .dayblock h3 { margin-bottom: 6px; }
 .dayblock .actions { margin-top: 6px; }
+
+.checkfield { grid-column: 1 / -1; }
+.checkfield-label { display: block; font-size: 14px; margin-bottom: 6px; }
+
+.checks { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.checks .check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 6px 12px;
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.checks .check:hover { border-color: var(--accent); }
+.checks .check input { margin: 0; width: auto; }
+.checks .check:has(input:checked) { border-color: var(--accent); color: var(--accent); }
