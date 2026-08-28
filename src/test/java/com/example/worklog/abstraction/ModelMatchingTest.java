@@ -13,35 +13,35 @@ import org.junit.jupiter.api.Test;
  */
 class ModelMatchingTest {
 
-    private LlmAbstractionService serviceFor(String model) {
-        return new LlmAbstractionService(
+    private LlmClient clientFor(String model) {
+        return new LlmClient(
                 new LlmProperties(true, "http://localhost:11434/v1", "local", model, 0.2, 120, "none"));
     }
 
     @Test
     void タグまで一致すれば取得済みと判定する() {
-        assertThat(serviceFor("qwen3.5:9b").hasConfiguredModel(List.of("qwen3.5:9b"))).isTrue();
+        assertThat(clientFor("qwen3.5:9b").hasConfiguredModel(List.of("qwen3.5:9b"))).isTrue();
     }
 
     @Test
     void タグ省略時は同名の任意タグに一致する() {
-        assertThat(serviceFor("qwen3.5").hasConfiguredModel(List.of("qwen3.5:9b"))).isTrue();
+        assertThat(clientFor("qwen3.5").hasConfiguredModel(List.of("qwen3.5:9b"))).isTrue();
     }
 
     @Test
     void タグを明示した場合は別タグに一致しない() {
         // "qwen3.5:9b" を要求しているのに 4b しか無い状態を取得済みと誤認しないこと
-        assertThat(serviceFor("qwen3.5:9b").hasConfiguredModel(List.of("qwen3.5:4b"))).isFalse();
+        assertThat(clientFor("qwen3.5:9b").hasConfiguredModel(List.of("qwen3.5:4b"))).isFalse();
     }
 
     @Test
     void 前方一致するだけの別モデルには一致しない() {
         // "qwen3" が "qwen3.5:9b" に一致してしまうと誤ったモデルで動く
-        assertThat(serviceFor("qwen3").hasConfiguredModel(List.of("qwen3.5:9b"))).isFalse();
+        assertThat(clientFor("qwen3").hasConfiguredModel(List.of("qwen3.5:9b"))).isFalse();
     }
 
     @Test
     void モデルが一つも無ければ取得済みではない() {
-        assertThat(serviceFor("qwen3.5:9b").hasConfiguredModel(List.of())).isFalse();
+        assertThat(clientFor("qwen3.5:9b").hasConfiguredModel(List.of())).isFalse();
     }
 }

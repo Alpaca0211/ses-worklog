@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>作業記録</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header>
+    <h1>作業記録</h1>
+    <nav>
+        <a th:href="@{/work}" class="active">作業記録</a>
+        <a th:href="@{/}">日次メモ</a>
+        <a th:href="@{/weekly}">週報</a>
+        <a th:href="@{/terms}">禁止用語辞書</a>
+    </nav>
+    <p class="hint">繰り返す定型作業を選択で記録します。ここではLLMを使いません。</p>
+</header>
+
+<main>
+    <p class="flash" th:if="${message}" th:text="${message}"></p>
+    <p class="error" th:if="${error}" th:text="${error}"></p>
+
+    <div class="daynav">
+        <a th:href="@{/work(date=${prevDate})}">← 前日</a>
+        <form method="get" th:action="@{/work}" class="inline">
+            <input type="date" name="date" th:value="${date}" onchange="this.form.submit()">
+        </form>
+        <a th:href="@{/work(date=${nextDate})}">翌日 →</a>
+    </div>
+
+    <h2>作業を追加</h2>
+    <form method="post" th:action="@{/work}">
+        <input type="hidden" name="date" th:value="${date}">
+
+        <div class="fields">
+            <label>案件
+                <select name="projectId" required>
+                    <option th:each="p : ${projects}" th:value="${p.id}" th:text="${p.name}">案件</option>
+                </select>
+            </label>
+            <label>施策名（任意）
+                <input type="text" name="workstream" list="workstream-options"
+                       placeholder="例: 脆弱性対応（8月）">
+                <datalist id="workstream-options">
+                    <option th:each="w : ${workstreams}" th:value="${w}"></option>
+                </datalist>
+            </label>
+        </div>
+
+        <fieldset class="taskfield">
+            <legend>作業種別（複数選択可）</legend>
+            <div class="checks">
+                <label th:each="t : ${taskTypes}" class="check">
+                    <input type="checkbox" name="taskTypeIds" th:value="${t.id}">
+                    <span th:text="${t.name}">種別</span>
+                </label>
+            </div>
+        </fieldset>
+
+        <label>対象（任意）
+            <input type="text" name="targets" placeholder="例: service_a：stg、service_b：prod">
+        </label>
+
+        <div class="actions"><button type="submit">記録する</button></div>
+    </form>
+
+    <h2>この日の記録</h2>
+    <p th:if="${entries.isEmpty()}" class="hint">まだ記録がありません。</p>
+    <table th:unless="${entries.isEmpty()}">
+        <thead>
+        <tr><th>案件</th><th>施策名</th><th>作業種別</th><th>対象</th><th></th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="e : ${entries}">
+            <td th:text="${e.project.name}">案件</td>
+            <td th:text="${e.workstream}">施策</td>
+            <td th:text="${e.taskTypeLabel}">種別</td>
+            <td><code th:text="${e.targets}">対象</code></td>
+            <td class="ops">
+                <form method="post" th:action="@{/work/{id}/delete(id=${e.id})}" class="inline">
+                    <input type="hidden" name="date" th:value="${date}">
+                    <button type="submit" class="tiny danger">削除</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div th:if="${!entries.isEmpty()}">
+        <h2>作業内容欄に貼り付けるテキスト</h2>
+        <pre class="output" id="preview" th:text="${preview}"></pre>
+        <div class="actions">
+            <button type="button" class="secondary copy-btn" data-target="preview">コピー</button>
+        </div>
+    </div>
+
+    <details>
+        <summary>マスタを編集する（案件・作業種別）</summary>
+        <h3>案件</h3>
+        <form method="post" th:action="@{/work/projects}" class="row">
+            <input type="hidden" name="date" th:value="${date}">
+            <input type="text" name="name" placeholder="案件名を追加" required>
+            <button type="submit" class="tiny">追加</button>
+        </form>
+        <table>
+            <tbody>
+            <tr th:each="p : ${allProjects}" th:classappend="${p.active} ? '' : 'disabled'">
+                <td th:text="${p.name}">案件</td>
+                <td th:text="${p.active} ? '有効' : '無効'">有効</td>
+                <td class="ops">
+                    <form method="post" th:action="@{/work/projects/{id}/toggle(id=${p.id})}" class="inline">
+                        <input type="hidden" name="date" th:value="${date}">
+                        <button type="submit" class="tiny secondary">切替</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+
+        <h3>作業種別</h3>
+        <form method="post" th:action="@{/work/task-types}" class="row">
+            <input type="hidden" name="date" th:value="${date}">
+            <input type="text" name="name" placeholder="作業種別を追加" required>
+            <button type="submit" class="tiny">追加</button>
+        </form>
+        <ul class="chips">
+            <li th:each="t : ${taskTypes}" th:text="${t.name}">種別</li>
+        </ul>
+    </details>
+</main>
+<script th:src="@{/js/copy.js}"></script>
+</body>
+</html>

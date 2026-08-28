@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>週報の下書き</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header>
+    <h1>週報の下書き</h1>
+    <nav>
+        <a th:href="@{/work}">作業記録</a>
+        <a th:href="@{/}">日次メモ</a>
+        <a th:href="@{/weekly}" class="active">週報</a>
+        <a th:href="@{/terms}">禁止用語辞書</a>
+    </nav>
+    <div class="badges">
+        <span class="badge" th:classappend="${llmStatus.usable} ? 'ok' : 'warn'"
+              th:text="${llmStatus.label}">LLM</span>
+    </div>
+</header>
+
+<main>
+    <div class="daynav">
+        <a th:href="@{/weekly(year=${prev.year()},month=${prev.month()},week=${prev.weekNum()},templateId=${templateId})}">← 前週</a>
+        <b th:text="${week.label()}">2026年8月4週</b>
+        <a th:href="@{/weekly(year=${next.year()},month=${next.month()},week=${next.weekNum()},templateId=${templateId})}">次週 →</a>
+    </div>
+    <p class="status">
+        <span th:text="${week.start()}">start</span> 〜 <span th:text="${week.end()}">end</span>
+    </p>
+
+    <section>
+        <h2>今週の実績（自動集計）</h2>
+        <p class="hint">
+            構造化された作業記録を数えたものです。生成ではないため誤りが入りません。
+            1件の記録に作業種別を複数付けられるため、種別ごとの合計は記録件数を上回ることがあります。
+        </p>
+        <p th:if="${report.summary().isEmpty()}" class="hint">この週の作業記録はありません。</p>
+        <div th:unless="${report.summary().isEmpty()}">
+            <p class="status">
+                記録 <b th:text="${report.summary().totalItems()}">0</b> 件 /
+                稼働 <b th:text="${report.summary().activeDays()}">0</b> 日
+            </p>
+            <ul class="chips">
+                <li th:each="c : ${report.summary().byTaskType()}">
+                    <span th:text="${c.name()}">種別</span>: <b th:text="${c.count()}">0</b> 件
+                </li>
+            </ul>
+            <ul class="chips">
+                <li th:each="c : ${report.summary().byProject()}">
+                    <span th:text="${c.name()}">案件</span>: <b th:text="${c.count()}">0</b> 件
+                </li>
+            </ul>
+        </div>
+    </section>
+
+    <section>
+        <h2>【業務遂行】</h2>
+        <form method="get" th:action="@{/weekly}" class="grid">
+            <input type="hidden" name="year" th:value="${week.year()}">
+            <input type="hidden" name="month" th:value="${week.month()}">
+            <input type="hidden" name="week" th:value="${week.weekNum()}">
+            <label>1文目（定型文を選択）
+                <select name="templateId" onchange="this.form.submit()">
+                    <option th:each="t : ${templates}" th:value="${t.id}" th:text="${t.text}"
+                            th:selected="${t.id == templateId}">定型文</option>
+                </select>
+            </label>
+            <div class="actions">
+                <button type="submit" name="generate" value="true">2文目を生成する</button>
+            </div>
+        </form>
+        <p class="hint">
+            2文目はその週の非定型の貢献（手順書の整備・改善など）だけを書く欄です。
+            日次メモに該当する記載が無ければ生成されません。
+        </p>
+
+        <pre class="output" id="performance" th:text="${report.performanceText()}"></pre>
+        <div class="actions">
+            <button type="button" class="secondary copy-btn" data-target="performance">コピー</button>
+        </div>
+        <p class="hint" th:if="${generated and !report.hasSecondSentence()}">
+            該当する非定型の貢献が日次メモに見つかりませんでした。1文目のみで提出して問題ありません。
+        </p>
+    </section>
+
+    <section>
+        <h2>日別の作業内容</h2>
+        <p th:if="${report.filledDays().isEmpty()}" class="hint">記録のある日がありません。</p>
+        <div th:each="d : ${report.filledDays()}" class="dayblock">
+            <h3>
+                <span th:text="${d.date()}">2026-08-24</span>
+                （<span th:text="${d.dayOfWeek()}">月</span>）
+            </h3>
+            <pre th:id="'day-' + ${d.date()}" th:text="${d.content()}"></pre>
+            <div class="actions">
+                <button type="button" class="tiny secondary copy-btn"
+                        th:attr="data-target='day-' + ${d.date()}">コピー</button>
+            </div>
+        </div>
+    </section>
+</main>
+<script th:src="@{/js/copy.js}"></script>
+</body>
+</html>
