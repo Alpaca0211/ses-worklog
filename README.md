@@ -95,8 +95,8 @@
 | フレームワーク | Spring Boot | 3.5.0 | Web / DI / 永続化を一式で賄う |
 | Web MVC | Spring MVC + Thymeleaf | 3.1.3 | 単一利用者向けのため SPA は不要 |
 | 永続化 | Spring Data JPA / Hibernate | 6.6.15 | |
-| DB | H2（ファイルモード） | 2.3.232 | 単一利用者・ローカル完結のため |
-| DB（移行先） | PostgreSQL | 42.7.5 | ドライバのみ同梱。プロファイル切替で使用 |
+| DB（既定） | H2（ファイルモード） | 2.3.232 | 追加インストールなしで動く。単一利用者・ローカル完結のため |
+| DB（任意） | PostgreSQL | 16 / ドライバ 42.7.5 | プロファイル切替で使用。H2 からの移行機能を同梱 |
 | 文字列探索 | Aho-Corasick | 0.6.3 | 日本語には語境界が無く正規表現が使えないため |
 | 推論エンジン | Ollama（OpenAI 互換 API） | 0.33 系 | ローカル完結。vLLM / LM Studio でも可 |
 | モデル | qwen3.5:9b | 6.6GB | VRAM 12GB に収まる範囲で検証 |
@@ -159,7 +159,47 @@ macOS / Linux:
 
 `http://localhost:8080` を開く。初回起動時に動作確認用のマスタが自動投入される。
 
-### 手順 3: ローカルLLM を有効にする（任意）
+### 手順 3: PostgreSQL で動かす（任意）
+
+既定は H2 のファイル DB で、追加のインストールなしに全機能が動作する。
+PostgreSQL でも動くようにしてあり、プロファイルの切り替えで使える。
+
+DB を用意する。次のいずれか。
+
+```
+docker compose up -d
+```
+
+```
+winget install PostgreSQL.PostgreSQL.16
+```
+
+Docker Desktop を使う場合、Windows では **WSL2 が必要**（未導入なら
+`wsl --install` と再起動が要る）。WSL2 を入れたくない場合は直接インストールでよい。
+どちらの場合も `application-postgres.yml` の接続先に合わせて
+データベース `worklog` とユーザ `worklog` を用意する。
+
+起動する。
+
+```
+mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=postgres
+```
+
+#### H2 から移行する
+
+すでに H2 で使っている場合、起動時に接続元を渡すとデータを複写する。
+**移行先の表が空のときだけ実行される**ので、誤って二重に流し込むことはない。
+
+```
+mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=postgres -Dspring-boot.run.arguments=--worklog.copy-from.url=jdbc:h2:file:./data/worklog
+```
+
+暗号化された列は暗号文のまま複写する。**鍵（`application-local.yml`）を
+変えなければそのまま復号できる。** 複写後は自動採番の次の値も調整される。
+
+移行前に `data/` の H2 ファイルを控えておくことを勧める。
+
+### 手順 4: ローカルLLM を有効にする（任意）
 
 未接続でも動作するが、文脈的な抽象化は行われない。
 
@@ -248,7 +288,7 @@ com.example.worklog
 
 | パッケージ | 責務 | 主なクラス |
 |---|---|---|
-| `config` | 起動時のマスタ投入と、`ddl-auto` では行われないスキーマ移行 | `MasterDataSeeder`, `WorkEntryTaskTypeMigration` |
+| `config` | 起動時のマスタ投入、`ddl-auto` では行われないスキーマ移行、DB 間のデータ複写 | `MasterDataSeeder`, `WorkEntryTaskTypeMigration`, `DataCopyRunner` |
 | `crypto` | 生ログ列の AES-256-GCM 暗号化。JPA の `AttributeConverter` で透過的に処理する | `EncryptedStringConverter`, `CryptoKeyHolder` |
 | `domain` | エンティティと Spring Data リポジトリ | `DailyLog`, `WorkEntry`, `ForbiddenTerm`, `Project`, `TaskType` |
 | `masking` | 辞書による決定論的な置換。宛先別の強度切替と、辞書未登録の固有名詞候補の検出 | `MaskingService`, `TermDictionary`, `MaskingProfile`, `RiskScanner` |
@@ -400,5 +440,7 @@ mvnw.cmd test
 ## 次のステップ
 
 1. 認証の追加（現在は単一利用者のローカル実行のみを想定）
-2. マスタの更新機能（現在は削除・無効化で代替）
-3. Flyway の導入によるスキーマ移行の整理
+2. PostgreSQL 上での動作確認（実装済み・複写処理は H2 間で検証済みだが、
+   PostgreSQL 実機での確認は未実施）
+3. マスタの更新機能（現在は削除・無効化で代替）
+4. Flyway の導入によるスキーマ移行の整理
