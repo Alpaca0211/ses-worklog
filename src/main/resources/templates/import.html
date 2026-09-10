@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>過去週報の取り込み</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header>
+    <h1>過去週報の取り込み</h1>
+    <nav>
+        <a th:href="@{/work}">作業記録</a>
+        <a th:href="@{/}">日次メモ</a>
+        <a th:href="@{/weekly}">週報</a>
+        <a th:href="@{/career}">職務経歴</a>
+        <a th:href="@{/import}" class="active">取り込み</a>
+        <a th:href="@{/terms}">禁止用語辞書</a>
+    </nav>
+    <div class="badges">
+        <span class="badge">取り込み済み <b th:text="${count}">0</b> 週</span>
+    </div>
+</header>
+
+<main>
+    <p class="flash" th:if="${message}" th:text="${message}"></p>
+    <p class="error" th:if="${error}" th:text="${error}"></p>
+
+    <p class="hint">
+        週報システムの CSV 出力を読み込み、【業務遂行】【報連相】と学んだことを蓄積します。
+        生成時の文体参照と職務経歴の材料に使います。
+        私生活の記述とリーダーからの返信は取り込みません。
+    </p>
+
+    <form method="post" th:action="@{/import}" enctype="multipart/form-data" class="row">
+        <input type="file" name="file" accept=".csv" required>
+        <button type="submit">取り込む</button>
+    </form>
+
+    <section th:if="${!examples.isEmpty()}">
+        <h2>生成時に参照される文体例</h2>
+        <p class="hint">
+            複数週で使い回されている行を定型文とみなして除外し、その週固有の記述だけを抽出しています。
+            生成時にはここから固有名詞を伏せたものが例として渡されます。
+        </p>
+        <ul class="logs">
+            <li th:each="e : ${examples}"><span class="excerpt" th:text="${e}">例</span></li>
+        </ul>
+    </section>
+
+    <section th:if="${!boilerplate.isEmpty()}">
+        <h2>定型文として検出された行</h2>
+        <p class="hint">3 週以上で繰り返し使われている行です。【業務遂行】1 文目の候補になります。</p>
+        <ul class="chips">
+            <li th:each="b : ${boilerplate}" th:text="${b}">定型文</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>取り込み済みの週</h2>
+        <p th:if="${reports.isEmpty()}" class="hint">まだ取り込んでいません。</p>
+        <table th:unless="${reports.isEmpty()}">
+            <thead>
+            <tr><th>年月週</th><th>業務遂行</th><th>学んだこと</th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="r : ${reports}">
+                <td th:text="${r.label}">2026年8月4週</td>
+                <td th:text="${#strings.abbreviate(r.performance, 60)}">-</td>
+                <td th:text="${#strings.abbreviate(r.learned, 40)}">-</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+</main>
+</body>
+</html>

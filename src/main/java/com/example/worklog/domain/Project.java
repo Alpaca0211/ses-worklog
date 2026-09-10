@@ -17,6 +17,14 @@ public class Project {
     @Column(nullable = false)
     private int displayOrder;
 
+    /**
+     * 社外向けの案件説明。職務経歴では案件名を伏せるため、
+     * 「担当案件」が複数並んで区別が付かなくなるのを防ぐ。
+     * 例:「Webサービスの保守開発」。未設定なら「担当案件」と表示される。
+     */
+    @Column(length = 200)
+    private String publicDescription;
+
     @Column(nullable = false)
     private boolean active = true;
 
@@ -42,6 +50,20 @@ public class Project {
 
     public int getDisplayOrder() {
         return displayOrder;
+    }
+
+    public String getPublicDescription() {
+        return publicDescription;
+    }
+
+    public void setPublicDescription(String publicDescription) {
+        this.publicDescription = publicDescription;
+    }
+
+    /** 社外向けの表示名。説明が未設定なら伏せた既定値を返す。 */
+    public String getPublicLabel() {
+        return (publicDescription == null || publicDescription.isBlank())
+                ? "担当案件" : publicDescription.trim();
     }
 
     public boolean isActive() {

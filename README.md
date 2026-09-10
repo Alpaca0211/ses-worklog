@@ -63,6 +63,28 @@
 
 生成物は下書きであり、外部システムへの書き込みは行わない。
 
+### 4. 過去週報の取り込み
+
+週報システムの CSV 出力を読み込み、生成時の文体参照と職務経歴の材料にする。
+
+複数週で使い回されている行を**出現回数**で定型文と判定し、その週固有の記述だけを
+文体例として抽出する。キーワード列挙ではないため、語彙の変化に追従できる。
+
+### 5. 職務経歴の下書き生成
+
+```
+作業記録（案件別）
+  ↓ LLM 不使用
+  └→ 期間・担当業務の件数
+
+日次メモ・取り込んだ過去週報
+  ↓ LLM
+  └→ 取り組み・実績
+```
+
+社外に出るため固有名詞をすべて伏せる。案件は識別できなくなるので、
+案件ごとに社外向けの説明（例:「Webサービスの保守開発」）を設定して使う。
+
 ---
 
 ## 技術スタック
@@ -182,6 +204,8 @@ Ollama 以外を使う場合は `base-url` の差し替えだけで動く。
 | 作業記録 | `/work` | 定型作業をマスタから選択して記録する |
 | 日次メモ | `/` | 非定型の気づき・改善を自由記述で残す |
 | 週報 | `/weekly` | 週単位で集計し、下書きを生成する |
+| 職務経歴 | `/career` | 期間を指定して職務経歴の下書きを生成する |
+| 取り込み | `/import` | 週報システムの CSV を読み込む |
 | 禁止用語辞書 | `/terms` | 伏せる固有名詞を登録・管理する |
 
 ### 作業記録と日次メモの使い分け
@@ -217,7 +241,8 @@ com.example.worklog
 ├── masking      禁止用語辞書と決定論的マスキング
 ├── abstraction  ローカルLLM クライアント
 ├── pipeline     秘匿化パイプライン
-├── weekly       週報の集計と生成
+├── weekly       週報の集計と生成、過去週報の取り込み
+├── career       職務経歴の集計と生成
 └── web          コントローラ
 ```
 
@@ -229,10 +254,11 @@ com.example.worklog
 | `masking` | 辞書による決定論的な置換。宛先別の強度切替と、辞書未登録の固有名詞候補の検出 | `MaskingService`, `TermDictionary`, `MaskingProfile`, `RiskScanner` |
 | `abstraction` | OpenAI 互換エンドポイントへの補完リクエスト、疎通確認、思考モード抑制 | `LlmClient`, `LlmStatus`, `LlmProperties` |
 | `pipeline` | マスキングと抽象化を組み合わせた秘匿化の一連の流れ | `SanitizePipeline`, `DailyLogService` |
-| `weekly` | 週境界の算出、作業内容テキストの組み立て、件数集計、報告文の生成 | `ReportWeek`, `WorkContentFormatter`, `WeeklyReportService`, `PerformanceGenerator` |
+| `weekly` | 週境界の算出、作業内容テキストの組み立て、件数集計、報告文の生成、過去週報の取り込み | `ReportWeek`, `WorkContentFormatter`, `WeeklyReportService`, `PerformanceGenerator`, `WeeklyReportCsvParser`, `PastReportService` |
+| `career` | 案件別の期間・件数の集計と、職務経歴テキストの組み立て | `CareerService`, `CareerTextFormatter`, `AchievementGenerator` |
 | `web` | 画面のコントローラとフォーム | `WorkEntryController`, `WeeklyReportController`, `HomeController` |
 
-依存の向きは `web → pipeline / weekly → masking / abstraction → domain`。
+依存の向きは `web → pipeline / weekly / career → masking / abstraction → domain`。
 `masking` は LLM に依存せず、`abstraction` が停止しても単独で機能する。
 
 ---
@@ -336,6 +362,10 @@ mvnw.cmd test
 | `ReportWeekTest` | 週境界（月初・月末の切り詰め、第 6 週） |
 | `WorkContentFormatterTest` | テキスト組み立て、書式の差し替え |
 | `ModelMatchingTest` | モデルタグの照合 |
+| `WeeklyReportCsvParserTest` | CP932・二重エスケープ・引用符内改行の読み取り |
+| `PastReportImportTest` | 取り込みの永続化、定型文の出現回数による判定 |
+| `CareerTextFormatterTest` | 職務経歴テキストの組み立て |
+| `CryptoConfigTest` | 鍵未設定時に起動を拒否し、生成手順を案内すること |
 
 ---
 
@@ -358,6 +388,10 @@ mvnw.cmd test
   Flyway を導入した時点で移行スクリプトへ置き換える。
 - マスタ（禁止用語・案件・作業種別・定型文）の編集は削除や無効化で代替する。更新機能は未実装。
 - 外部システムへの書き込みは行わない。生成物はコピーして貼り付ける運用とする。
+- CSV 取り込みでは、エクスポート側が CP932 に無い記号を `?` に置き換えて出力するため、
+  一部の記号は復元できない。情報が失われているのはエクスポート側であり、取り込み側では補えない。
+- 職務経歴の「取り組み・実績」は期間全体のものとして出力する。日次メモを案件に紐付けていない
+  （紐付けを求めると入力の手間が増える）ため、案件ごとに割り当てられない。
 - `spring-boot:run` は JVM をフォークするため、Maven を停止してもアプリが残る場合がある。
   H2 のファイルロックが解放されず再起動に失敗したら、残存 java プロセスを終了させること。
 
@@ -365,7 +399,6 @@ mvnw.cmd test
 
 ## 次のステップ
 
-1. 過去データの CSV 取り込み → few-shot 例として文体の踏襲精度を上げる
-2. 職務経歴エントリの自動生成
-3. PostgreSQL への移行（`compose.yaml` と `application-postgres.yml` は用意済み）
-   - ベクトル検索は対象データが年 250 件程度のため不要。総当たりで足りる
+1. 認証の追加（現在は単一利用者のローカル実行のみを想定）
+2. マスタの更新機能（現在は削除・無効化で代替）
+3. Flyway の導入によるスキーマ移行の整理

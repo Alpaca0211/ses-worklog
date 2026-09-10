@@ -44,19 +44,40 @@ public class PerformanceGenerator {
                非定型の行動だけを書く。
             5. 該当する行動が入力に無ければ、「なし」とだけ出力する。無理に埋めない。
             6. 出力は本文のみ。前置き・見出し・箇条書き記号を一切付けない。
-
-            文体と粒度の例:
-            リリース作業において、効率化のため、新たに必要となった手順、不要となった手順の整備を行った。
-            脆弱性対応業務において、動作確認手順が変更となったため、効率化のため手順書の整備を行った。
-            新規コンポーネントの初回リリース作業において、客先の担当者と連携し、リリース手順書の作成を実施した。
             """;
+
+    /** 過去週報を取り込んでいない場合に使う既定の文体例。 */
+    private static final List<String> DEFAULT_EXAMPLES = List.of(
+            "リリース作業において、効率化のため、新たに必要となった手順、不要となった手順の整備を行った。",
+            "脆弱性対応業務において、動作確認手順が変更となったため、効率化のため手順書の整備を行った。",
+            "新規コンポーネントの初回リリース作業において、客先の担当者と連携し、リリース手順書の作成を実施した。");
 
     private final LlmClient client;
     private final MaskingService maskingService;
+    private final PastReportService pastReportService;
 
-    public PerformanceGenerator(LlmClient client, MaskingService maskingService) {
+    public PerformanceGenerator(LlmClient client, MaskingService maskingService,
+                                PastReportService pastReportService) {
         this.client = client;
         this.maskingService = maskingService;
+        this.pastReportService = pastReportService;
+    }
+
+    /**
+     * 過去週報から採った文体例を添えたプロンプトを組み立てる。
+     *
+     * <p>例は社外向けマスキングを通してから渡す。案件名を含んだまま例示すると、
+     * モデルがその名前を今週の出力へ持ち込みうるため。文体と粒度さえ伝われば
+     * 目的は果たせるので、固有名詞は例側では不要。
+     */
+    private String systemPrompt() {
+        List<String> examples = pastReportService.distinctiveExamples(6).stream()
+                .map(e -> maskingService.mask(e, MaskingProfile.EXTERNAL).text())
+                .toList();
+        if (examples.isEmpty()) {
+            examples = DEFAULT_EXAMPLES;
+        }
+        return SYSTEM_PROMPT + "\n文体と粒度の例:\n" + String.join("\n", examples) + "\n";
     }
 
     /**
@@ -71,7 +92,7 @@ public class PerformanceGenerator {
         if (notes.isBlank()) {
             return Optional.empty();
         }
-        Optional<String> generated = client.complete(SYSTEM_PROMPT,
+        Optional<String> generated = client.complete(systemPrompt(),
                 "以下は今週の業務メモです。非定型の貢献があれば2文目を書いてください。\n\n" + notes);
         if (generated.isEmpty()) {
             return Optional.empty();
