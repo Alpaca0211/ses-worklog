@@ -2,19 +2,16 @@ spring:
   application:
     name: ses-worklog
   profiles:
+    # 既定は PostgreSQL。用意できない場合は h2 プロファイルで起動する
+    #   mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=h2
+    active: postgres
     # 暗号鍵などマシン固有の設定は application-local.yml に置く（Git 管理外）
     include: local
 
-  datasource:
-    # MVP は H2 ファイルDB。Docker 導入後は -Dspring.profiles.active=postgres で切り替える
-    url: jdbc:h2:file:./data/worklog
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: ""
-
   jpa:
     hibernate:
-      # MVP 段階のみ。PostgreSQL へ移行する際に Flyway へ置き換える
+      # スキーマ変更時のデータ移行は config パッケージの移行処理で個別に行う。
+      # Flyway を導入した時点で移行スクリプトへ置き換える
       ddl-auto: update
     open-in-view: false
     properties:
@@ -30,6 +27,12 @@ server:
   address: 127.0.0.1
 
 worklog:
+  # 作業内容欄の書式。週報システムの仕様ではなく利用者独自の記法のため設定にしている
+  format:
+    daily-header: "■やったこと"
+    project-prefix: "▶ "
+    item-prefix: "・"
+
   llm:
     enabled: true
     # OpenAI 互換エンドポイント（Ollama / vLLM / LM Studio）

@@ -28,8 +28,13 @@ public class CryptoConfig {
                         crypto:
                           key: <Base64 エンコードした 32 バイトのランダム値>
 
-                    鍵は次のコマンドで生成できます:
-                      java -e ... もしくは scripts/gen-key.ps1 を実行
+                    鍵は PowerShell で生成できます:
+
+                      $b = New-Object byte[] 32
+                      [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b)
+                      [Convert]::ToBase64String($b)
+
+                    詳細は README.md の「セットアップ」を参照してください。
                     ------------------------------------------------------------
                     """);
         }

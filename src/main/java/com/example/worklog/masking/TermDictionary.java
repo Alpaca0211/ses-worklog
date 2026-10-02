@@ -2,6 +2,7 @@ package com.example.worklog.masking;
 
 import com.example.worklog.domain.ForbiddenTerm;
 import com.example.worklog.domain.ForbiddenTermRepository;
+import com.example.worklog.domain.TermCategory;
 import jakarta.annotation.PostConstruct;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,11 +18,19 @@ import org.springframework.stereotype.Component;
  * かつ用語数が増えても走査が O(テキスト長) で済む。
  * {@code ignoreOverlaps} により「株式会社ABC」と「ABC」が競合した場合は
  * 最長一致（＝より具体的な方）が優先される。
+ *
+ * <p>Trie は 1 本だけ持ち、置換するかどうかは分類とプロファイルの組み合わせで
+ * 置換時に判定する。プロファイルごとに Trie を作ると辞書更新のたびに
+ * 全プロファイル分を再構築することになるため。
  */
 @Component
 public class TermDictionary {
 
     private static final Logger log = LoggerFactory.getLogger(TermDictionary.class);
+
+    /** 辞書に登録された 1 語の情報。 */
+    public record TermInfo(String replacement, TermCategory category) {
+    }
 
     private final ForbiddenTermRepository repository;
 
@@ -33,7 +42,7 @@ public class TermDictionary {
 
     @PostConstruct
     public void reload() {
-        Map<String, String> replacements = new HashMap<>();
+        Map<String, TermInfo> terms = new HashMap<>();
         Trie.TrieBuilder builder = Trie.builder().ignoreCase().ignoreOverlaps();
         int count = 0;
         for (ForbiddenTerm t : repository.findByEnabledTrue()) {
@@ -43,10 +52,10 @@ public class TermDictionary {
             }
             builder.addKeyword(term);
             // ignoreCase 時に Emit が返す keyword は小文字化されるため、小文字キーで引く
-            replacements.put(term.toLowerCase(), t.getReplacement());
+            terms.put(term.toLowerCase(), new TermInfo(t.getReplacement(), t.getCategory()));
             count++;
         }
-        snapshot = new Snapshot(builder.build(), Map.copyOf(replacements), count);
+        snapshot = new Snapshot(builder.build(), Map.copyOf(terms), count);
         log.info("禁止用語辞書をロードしました: {} 件", count);
     }
 
@@ -58,6 +67,6 @@ public class TermDictionary {
         return snapshot.termCount();
     }
 
-    record Snapshot(Trie trie, Map<String, String> replacements, int termCount) {
+    record Snapshot(Trie trie, Map<String, TermInfo> terms, int termCount) {
     }
 }

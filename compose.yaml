@@ -1,34 +1,33 @@
-# Docker 導入後に使う。MVP は H2 ファイルDB で動くため必須ではない。
+# PostgreSQL で動かす場合に使う。H2 のままでも全機能が動作するため必須ではない。
+#
 #   docker compose up -d
-#   ./mvnw spring-boot:run -Dspring-boot.run.profiles=postgres
+#   mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=postgres
+#
+# Windows で Docker Desktop を使う場合は WSL2 が必要。
+# WSL2 を入れたくない場合は PostgreSQL を直接インストールしても同じ（README 参照）。
+#
+# ベクトル拡張は入れていない。対象データが年 250 件程度で、
+# 類似検索が必要になっても総当たりで足りるため。
+#
+# Ollama はこの構成に含めない。Windows では Docker 経由にすると GPU の受け渡しに
+# NVIDIA Container Toolkit と WSL2 の設定が要り、ネイティブ実行より遅く壊れやすい。
 services:
   db:
-    # 週報生成フェーズでベクトル検索を使うため、最初から pgvector 入りを指定する
-    image: pgvector/pgvector:pg16
+    image: postgres:16
     environment:
       POSTGRES_DB: worklog
       POSTGRES_USER: worklog
       POSTGRES_PASSWORD: worklog
     ports:
+      # ループバックのみに公開する。業務記録を持つDBをLANへ出さない
       - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - "127.0.0.1:11434:11434"
-    volumes:
-      - ollama:/root/.ollama
-    # GPU を使う場合（NVIDIA Container Toolkit が必要）
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U worklog -d worklog"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   pgdata:
-  ollama:

@@ -1,0 +1,14 @@
+# PostgreSQL を用意せずに動かすためのプロファイル。
+#   mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=h2
+#
+# 追加のインストールなしに全機能が動作する。試用や、PostgreSQL を
+# 使えない環境向け。継続して使う場合は PostgreSQL を勧める。
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/worklog
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: update

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>スキルシートの下書き</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header>
+    <h1>スキルシートの下書き</h1>
+    <nav>
+        <a th:href="@{/work}">作業記録</a>
+        <a th:href="@{/}">日次メモ</a>
+        <a th:href="@{/weekly}">週報</a>
+        <a th:href="@{/career}" class="active">スキルシート</a>
+        <a th:href="@{/import}">取り込み</a>
+        <a th:href="@{/terms}">禁止用語辞書</a>
+    </nav>
+    <div class="badges">
+        <span class="badge" th:classappend="${llmStatus.usable} ? 'ok' : 'warn'"
+              th:text="${llmStatus.label}">LLM</span>
+        <span class="badge warn">社外向け（固有名詞をすべて伏せます）</span>
+    </div>
+</header>
+
+<main>
+    <p class="flash" th:if="${message}" th:text="${message}"></p>
+
+    <p class="hint">
+        期間・稼動月数・担当業務の件数・経験年数はすべて記録の集計です。
+        LLM を使うのは「取り組み・実績」の文章化だけ。
+        <b>提出前に必ず内容を確認してください。</b>
+    </p>
+
+    <form method="get" th:action="@{/career}" class="fields">
+        <label>開始
+            <input type="date" name="from" th:value="${from}">
+        </label>
+        <label>終了
+            <input type="date" name="to" th:value="${to}">
+        </label>
+        <div class="actions">
+            <button type="submit" class="secondary">集計する</button>
+            <button type="submit" name="generate" value="true">実績まで生成する</button>
+        </div>
+    </form>
+
+    <section>
+        <h2>生成結果</h2>
+        <pre class="output" id="career" th:text="${careerText}">-</pre>
+        <div class="actions">
+            <button type="button" class="secondary copy-btn" data-target="career">コピー</button>
+        </div>
+        <p class="hint" th:if="${generated and !draft.hasAchievements()}">
+            日次メモに経歴として書ける記述が見つかりませんでした。無理に埋めない設計にしています。
+        </p>
+        <p class="hint" th:if="${!draft.hasTechnologyExperience()}">
+            技能歴が空です。下の「案件の詳細」で使用技術を紐付けると、
+            案件期間の合計として経験年数が自動で積み上がります。
+        </p>
+    </section>
+
+    <section>
+        <h2>案件の詳細</h2>
+        <p class="hint">
+            社外に出る項目です。案件名は伏せ、「◯◯業界の△△システム」の粒度で書きます。
+            期間を空にすると作業記録の日付範囲から自動で算出します
+            （作業記録の無い過去案件は期間を明示してください）。
+        </p>
+
+        <form method="post" th:action="@{/career/projects}" class="row">
+            <input type="hidden" name="from" th:value="${from}">
+            <input type="hidden" name="to" th:value="${to}">
+            <input type="text" name="name" placeholder="案件を追加（社内での識別名）" required>
+            <button type="submit" class="tiny">追加</button>
+        </form>
+
+        <details th:each="p : ${projects}" class="projectblock">
+            <summary>
+                <span th:text="${p.name}">案件</span>
+                <span class="tag" th:if="${p.merged}"
+                      th:text="'→ ' + ${p.careerMergeInto.name} + ' に統合'">統合先</span>
+                <span class="tag" th:if="${!p.merged and !#strings.isEmpty(p.publicDescription)}"
+                      th:text="${p.publicDescription}">社外向け名</span>
+                <span class="tag warn"
+                      th:if="${!p.merged and #strings.isEmpty(p.publicDescription)}">未設定</span>
+            </summary>
+
+            <form method="post" th:action="@{/career/projects/{id}/merge(id=${p.id})}" class="row">
+                <input type="hidden" name="from" th:value="${from}">
+                <input type="hidden" name="to" th:value="${to}">
+                <label class="inlinelabel">スキルシート上の統合先
+                    <select name="targetId">
+                        <option value="">（統合しない）</option>
+                        <option th:each="o : ${projects}" th:if="${o.id != p.id and !o.merged}"
+                                th:value="${o.id}" th:text="${o.name}"
+                                th:selected="${p.merged and p.careerMergeInto.id == o.id}">案件</option>
+                    </select>
+                </label>
+                <button type="submit" class="tiny secondary">設定</button>
+            </form>
+            <p class="hint" th:if="${p.merged}">
+                この案件はスキルシートでは統合先にまとめて出力されます。
+                下の項目は使われません（統合先の項目が使われます）。
+                週報の作業内容欄では引き続き独立した区切りとして出ます。
+            </p>
+
+            <form method="post" th:action="@{/career/projects/{id}(id=${p.id})}">
+                <input type="hidden" name="from" th:value="${from}">
+                <input type="hidden" name="to" th:value="${to}">
+
+                <div class="fields">
+                    <label>業種
+                        <input type="text" name="industry" th:value="${p.industry}" list="industry-options"
+                               placeholder="例: 金融">
+                    </label>
+                    <label>社外向けの案件名（≪…≫）
+                        <input type="text" name="publicDescription" th:value="${p.publicDescription}"
+                               placeholder="例: 融資管理システム金利計算対応">
+                    </label>
+                </div>
+
+                <label>[概要]
+                    <textarea name="overview" rows="4" th:text="${p.overview}"
+                              placeholder="例: 大手◯◯で用いる△△システムの保守開発。…"></textarea>
+                </label>
+
+                <div class="fields">
+                    <label>[チーム構成]
+                        <input type="text" name="teamComposition" th:value="${p.teamComposition}"
+                               placeholder="例: PL(1名)、メンバー(自身含む4名)">
+                    </label>
+                    <label>[規模]（任意）
+                        <input type="text" name="projectScale" th:value="${p.projectScale}"
+                               placeholder="例: プロジェクト画面数:約10、担当画面数:10">
+                    </label>
+                    <label>環境
+                        <input type="text" name="environment" th:value="${p.environment}"
+                               placeholder="例: Windows / Linux">
+                    </label>
+                </div>
+
+                <div class="fields">
+                    <label>開始日（空なら作業記録から算出）
+                        <input type="date" name="startDate" th:value="${p.startDate}">
+                    </label>
+                    <label>終了日（空なら作業記録から算出）
+                        <input type="date" name="endDate" th:value="${p.endDate}">
+                    </label>
+                </div>
+
+                <fieldset class="taskfield">
+                    <legend>使用技術 — 言語・フレームワーク</legend>
+                    <div class="checks">
+                        <label th:each="t : ${technologies.?[category.name() == 'LANGUAGE_FRAMEWORK']}"
+                               th:if="${t.active or p.usesTechnology(t.id)}" class="check">
+                            <input type="checkbox" name="technologyIds" th:value="${t.id}"
+                                   th:checked="${p.usesTechnology(t.id)}">
+                            <span th:text="${t.name}">技術</span>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <fieldset class="taskfield">
+                    <legend>使用技術 — OS・その他（ツールなど）</legend>
+                    <div class="checks">
+                        <label th:each="t : ${technologies.?[category.name() == 'OS_TOOL']}"
+                               th:if="${t.active or p.usesTechnology(t.id)}" class="check">
+                            <input type="checkbox" name="technologyIds" th:value="${t.id}"
+                                   th:checked="${p.usesTechnology(t.id)}">
+                            <span th:text="${t.name}">技術</span>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <div class="actions"><button type="submit">保存</button></div>
+            </form>
+        </details>
+
+        <datalist id="industry-options">
+            <option value="金融"></option>
+            <option value="小売業"></option>
+            <option value="通信"></option>
+            <option value="製造"></option>
+            <option value="物流"></option>
+            <option value="医療"></option>
+            <option value="IT企業"></option>
+            <option value="その他"></option>
+        </datalist>
+    </section>
+
+    <section>
+        <h2>技術マスタ</h2>
+        <p class="hint">
+            案件に紐付けると経験年数が積み上がります。
+            無効にしても選択済みの案件からは外れず、経験年数にも引き続き算入されます。
+            使わない技術を選択肢から隠すためのものです。
+        </p>
+
+        <form method="post" th:action="@{/career/technologies}" class="row">
+            <input type="hidden" name="from" th:value="${from}">
+            <input type="hidden" name="to" th:value="${to}">
+            <input type="text" name="name" placeholder="技術名を追加" required>
+            <select name="category">
+                <option value="LANGUAGE_FRAMEWORK">言語・フレームワーク</option>
+                <option value="OS_TOOL">OS・その他（ツールなど）</option>
+            </select>
+            <button type="submit" class="tiny">追加</button>
+        </form>
+
+        <table>
+            <thead>
+            <tr><th>技術</th><th>区分</th><th>状態</th><th></th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="t : ${technologies}" th:classappend="${t.active} ? '' : 'disabled'">
+                <td th:text="${t.name}">技術</td>
+                <td th:text="${t.category.label}">区分</td>
+                <td th:text="${t.active} ? '有効' : '無効'">有効</td>
+                <td class="ops">
+                    <form method="post" th:action="@{/career/technologies/{id}/toggle(id=${t.id})}" class="inline">
+                        <input type="hidden" name="from" th:value="${from}">
+                        <input type="hidden" name="to" th:value="${to}">
+                        <button type="submit" class="tiny secondary">切替</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+</main>
+<script th:src="@{/js/copy.js}"></script>
+</body>
+</html>
