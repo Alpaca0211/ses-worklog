@@ -91,6 +91,18 @@ class TechnologyExperienceTest extends SanitizeTestBase {
     }
 
     @Test
+    void 無効にしても経験年数には算入される() {
+        // 無効化は選択肢から隠すための操作であり、過去に使った実績を取り消すものではない
+        project("A", "2024-01-01", "2024-03-31", java);
+        java.setActive(false);
+        technologies.save(java);
+
+        assertThat(service.aggregateTechnologyExperience())
+                .extracting(TechnologyExperience::name, TechnologyExperience::duration)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("Java", "0年3ヶ月"));
+    }
+
+    @Test
     void 使われていない技術は技能歴に出ない() {
         project("A", "2024-01-01", "2024-03-31", java);
 

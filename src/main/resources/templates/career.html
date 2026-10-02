@@ -69,6 +69,13 @@
             （作業記録の無い過去案件は期間を明示してください）。
         </p>
 
+        <form method="post" th:action="@{/career/projects}" class="row">
+            <input type="hidden" name="from" th:value="${from}">
+            <input type="hidden" name="to" th:value="${to}">
+            <input type="text" name="name" placeholder="案件を追加（社内での識別名）" required>
+            <button type="submit" class="tiny">追加</button>
+        </form>
+
         <details th:each="p : ${projects}" class="projectblock">
             <summary>
                 <span th:text="${p.name}">案件</span>
@@ -124,7 +131,7 @@
                     <legend>使用技術 — 言語・フレームワーク</legend>
                     <div class="checks">
                         <label th:each="t : ${technologies.?[category.name() == 'LANGUAGE_FRAMEWORK']}"
-                               class="check">
+                               th:if="${t.active or p.usesTechnology(t.id)}" class="check">
                             <input type="checkbox" name="technologyIds" th:value="${t.id}"
                                    th:checked="${p.usesTechnology(t.id)}">
                             <span th:text="${t.name}">技術</span>
@@ -135,7 +142,8 @@
                 <fieldset class="taskfield">
                     <legend>使用技術 — OS・その他（ツールなど）</legend>
                     <div class="checks">
-                        <label th:each="t : ${technologies.?[category.name() == 'OS_TOOL']}" class="check">
+                        <label th:each="t : ${technologies.?[category.name() == 'OS_TOOL']}"
+                               th:if="${t.active or p.usesTechnology(t.id)}" class="check">
                             <input type="checkbox" name="technologyIds" th:value="${t.id}"
                                    th:checked="${p.usesTechnology(t.id)}">
                             <span th:text="${t.name}">技術</span>
@@ -157,6 +165,46 @@
             <option value="IT企業"></option>
             <option value="その他"></option>
         </datalist>
+    </section>
+
+    <section>
+        <h2>技術マスタ</h2>
+        <p class="hint">
+            案件に紐付けると経験年数が積み上がります。
+            無効にしても選択済みの案件からは外れず、経験年数にも引き続き算入されます。
+            使わない技術を選択肢から隠すためのものです。
+        </p>
+
+        <form method="post" th:action="@{/career/technologies}" class="row">
+            <input type="hidden" name="from" th:value="${from}">
+            <input type="hidden" name="to" th:value="${to}">
+            <input type="text" name="name" placeholder="技術名を追加" required>
+            <select name="category">
+                <option value="LANGUAGE_FRAMEWORK">言語・フレームワーク</option>
+                <option value="OS_TOOL">OS・その他（ツールなど）</option>
+            </select>
+            <button type="submit" class="tiny">追加</button>
+        </form>
+
+        <table>
+            <thead>
+            <tr><th>技術</th><th>区分</th><th>状態</th><th></th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="t : ${technologies}" th:classappend="${t.active} ? '' : 'disabled'">
+                <td th:text="${t.name}">技術</td>
+                <td th:text="${t.category.label}">区分</td>
+                <td th:text="${t.active} ? '有効' : '無効'">有効</td>
+                <td class="ops">
+                    <form method="post" th:action="@{/career/technologies/{id}/toggle(id=${t.id})}" class="inline">
+                        <input type="hidden" name="from" th:value="${from}">
+                        <input type="hidden" name="to" th:value="${to}">
+                        <button type="submit" class="tiny secondary">切替</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
     </section>
 </main>
 <script th:src="@{/js/copy.js}"></script>

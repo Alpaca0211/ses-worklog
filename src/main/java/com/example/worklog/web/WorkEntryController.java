@@ -2,6 +2,7 @@ package com.example.worklog.web;
 
 import com.example.worklog.domain.*;
 import com.example.worklog.weekly.WorkContentFormatter;
+import com.example.worklog.career.CareerService;
 import com.example.worklog.weekly.WorkEntryService;
 import java.time.LocalDate;
 import java.util.List;
@@ -17,14 +18,17 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class WorkEntryController {
 
     private final WorkEntryService service;
+    private final CareerService careerService;
     private final WorkContentFormatter formatter;
     private final ProjectRepository projectRepository;
     private final TaskTypeRepository taskTypeRepository;
 
-    public WorkEntryController(WorkEntryService service, WorkContentFormatter formatter,
+    public WorkEntryController(WorkEntryService service, CareerService careerService,
+                               WorkContentFormatter formatter,
                                ProjectRepository projectRepository,
                                TaskTypeRepository taskTypeRepository) {
         this.service = service;
+        this.careerService = careerService;
         this.formatter = formatter;
         this.projectRepository = projectRepository;
         this.taskTypeRepository = taskTypeRepository;
@@ -78,13 +82,12 @@ public class WorkEntryController {
     public String addProject(@RequestParam String name,
                              @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                              RedirectAttributes ra) {
-        String trimmed = name == null ? "" : name.trim();
-        if (trimmed.isEmpty()) {
-            ra.addFlashAttribute("error", "案件名が空です。");
-        } else {
-            int order = projectRepository.findAll().size() + 1;
-            projectRepository.save(new Project(trimmed, order));
-            ra.addFlashAttribute("message", "案件を追加しました: " + trimmed);
+        // 追加処理は /career 側と同じものを使う。登録経路で挙動が分かれないようにする
+        try {
+            careerService.addProject(name);
+            ra.addFlashAttribute("message", "案件を追加しました: " + name.trim());
+        } catch (IllegalArgumentException e) {
+            ra.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/work?date=" + date;
     }

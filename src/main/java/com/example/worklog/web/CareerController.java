@@ -4,6 +4,7 @@ import com.example.worklog.abstraction.AbstractionService;
 import com.example.worklog.career.CareerDraft;
 import com.example.worklog.career.CareerService;
 import com.example.worklog.career.CareerTextFormatter;
+import com.example.worklog.domain.TechnologyCategory;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -48,6 +49,43 @@ public class CareerController {
         model.addAttribute("llmStatus", abstractionService.status());
         model.addAttribute("generated", generate);
         return "career";
+    }
+
+    @PostMapping("/projects")
+    public String addProject(@RequestParam String name,
+                             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                             RedirectAttributes ra) {
+        try {
+            service.addProject(name);
+            ra.addFlashAttribute("message", "案件を追加しました: " + name.trim());
+        } catch (IllegalArgumentException e) {
+            ra.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/career?from=" + from + "&to=" + to;
+    }
+
+    @PostMapping("/technologies")
+    public String addTechnology(@RequestParam String name,
+                                @RequestParam TechnologyCategory category,
+                                @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                                RedirectAttributes ra) {
+        try {
+            service.addTechnology(name, category);
+            ra.addFlashAttribute("message", "技術を追加しました: " + name.trim());
+        } catch (IllegalArgumentException e) {
+            ra.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/career?from=" + from + "&to=" + to;
+    }
+
+    @PostMapping("/technologies/{id}/toggle")
+    public String toggleTechnology(@PathVariable Long id,
+                                   @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                   @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        service.toggleTechnology(id);
+        return "redirect:/career?from=" + from + "&to=" + to;
     }
 
     @PostMapping("/projects/{id}")

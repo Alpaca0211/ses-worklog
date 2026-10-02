@@ -52,6 +52,54 @@ public class CareerService {
         return technologyRepository.findAllByOrderByCategoryAscDisplayOrderAscIdAsc();
     }
 
+    /** 案件を追加する。社外向けの項目は追加後に編集する。 */
+    @Transactional
+    public Project addProject(String name) {
+        String trimmed = name == null ? "" : name.trim();
+        if (trimmed.isEmpty()) {
+            throw new IllegalArgumentException("案件名が空です。");
+        }
+        return projectRepository.findAll().stream()
+                .filter(p -> trimmed.equals(p.getName()))
+                .findFirst()
+                .orElseGet(() -> projectRepository.save(
+                        new Project(trimmed, projectRepository.findAll().size() + 1)));
+    }
+
+    /** 技術を追加する。表示順はその区分の末尾。 */
+    @Transactional
+    public Technology addTechnology(String name, TechnologyCategory category) {
+        String trimmed = name == null ? "" : name.trim();
+        if (trimmed.isEmpty()) {
+            throw new IllegalArgumentException("技術名が空です。");
+        }
+        if (category == null) {
+            throw new IllegalArgumentException("区分を選んでください。");
+        }
+        return technologyRepository.findAll().stream()
+                .filter(t -> trimmed.equalsIgnoreCase(t.getName()))
+                .findFirst()
+                .orElseGet(() -> {
+                    int order = (int) technologyRepository.findAll().stream()
+                            .filter(t -> t.getCategory() == category).count() + 1;
+                    return technologyRepository.save(new Technology(trimmed, category, order));
+                });
+    }
+
+    /**
+     * 技術の有効・無効を切り替える。
+     *
+     * <p>無効にしても選択済みの案件からは外れない。経験年数にも引き続き算入される。
+     * 使わなくなった技術を選択肢から隠すだけで、過去の実績は消さない。
+     */
+    @Transactional
+    public void toggleTechnology(Long id) {
+        technologyRepository.findById(id).ifPresent(t -> {
+            t.setActive(!t.isActive());
+            technologyRepository.save(t);
+        });
+    }
+
     @Transactional
     public void updateProject(Long projectId, ProjectDetails details) {
         projectRepository.findById(projectId).ifPresent(p -> {
