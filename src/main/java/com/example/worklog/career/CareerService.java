@@ -100,6 +100,30 @@ public class CareerService {
         });
     }
 
+    /**
+     * スキルシート上の統合先を設定する。
+     * 統合先がさらに別へ統合されている場合は、連鎖させず拒否する。
+     */
+    @Transactional
+    public void setCareerMergeInto(Long projectId, Long targetId) {
+        Project project = projectRepository.findById(projectId).orElseThrow();
+        if (targetId == null) {
+            project.setCareerMergeInto(null);
+            projectRepository.save(project);
+            return;
+        }
+        if (targetId.equals(projectId)) {
+            throw new IllegalArgumentException("自分自身は統合先にできません。");
+        }
+        Project target = projectRepository.findById(targetId)
+                .orElseThrow(() -> new IllegalArgumentException("統合先が見つかりません。"));
+        if (target.isMerged()) {
+            throw new IllegalArgumentException("統合先がさらに別の案件へ統合されています。統合は1段までです。");
+        }
+        project.setCareerMergeInto(target);
+        projectRepository.save(project);
+    }
+
     @Transactional
     public void updateProject(Long projectId, ProjectDetails details) {
         projectRepository.findById(projectId).ifPresent(p -> {
@@ -131,13 +155,32 @@ public class CareerService {
     public CareerDraft build(LocalDate from, LocalDate to, boolean generateAchievements) {
         List<WorkEntry> entries = workEntryRepository
                 .findByWorkDateBetweenOrderByWorkDateAscProjectDisplayOrderAscIdAsc(from, to);
+        // 統合先が指定されていればそちらに寄せる。実際には 1 つの案件が機能ごとに
+        // 分かれている場合、スキルシートでは 1 ブロックとして出すため
         Map<Project, List<WorkEntry>> byProject = entries.stream()
-                .collect(Collectors.groupingBy(WorkEntry::getProject, LinkedHashMap::new, Collectors.toList()));
+                .collect(Collectors.groupingBy(e -> e.getProject().careerTarget(),
+                        LinkedHashMap::new, Collectors.toList()));
 
         List<CareerEntry> result = new ArrayList<>();
         for (Map.Entry<Project, List<WorkEntry>> group : byProject.entrySet()) {
             result.add(toEntry(group.getKey(), group.getValue(), from, to));
         }
+
+        // 作業記録を持たないが期間を明示した案件（過去案件）も業務実績に出す。
+        // 記録を取り始める前の案件はスキルシートに必要で、作業記録からは拾えないため
+        for (Project p : projectRepository.findAll()) {
+            if (p.isMerged() || p.getStartDate() == null || byProject.containsKey(p)) {
+                continue;
+            }
+            LocalDate end = p.getEndDate() == null ? to : p.getEndDate();
+            boolean overlaps = !p.getStartDate().isAfter(to) && !end.isBefore(from);
+            if (overlaps) {
+                result.add(toEntry(p, List.of(), from, to));
+            }
+        }
+
+        // シートの並びに合わせて新しい順にする
+        result.sort(Comparator.comparing(CareerEntry::start).reversed());
 
         // 日次メモは案件に紐付かないため、取り組みは期間全体で 1 回だけ生成する
         List<String> achievements = generateAchievements
@@ -189,8 +232,13 @@ public class CareerService {
     @Transactional(readOnly = true)
     public List<TechnologyExperience> aggregateTechnologyExperience() {
         Map<Technology, Integer> totals = new LinkedHashMap<>();
+        // 統合先に寄せてから数える。同じ技術を機能ごとの案件へ紐付けたときに、
+        // 同一期間を案件の数だけ重複して積み上げないため
         for (Project project : projectRepository.findAll()) {
-            int months = projectMonths(project);
+            if (project.isMerged()) {
+                continue;
+            }
+            int months = mergedMonths(project);
             if (months <= 0) {
                 continue;
             }
@@ -205,23 +253,28 @@ public class CareerService {
                 .toList();
     }
 
-    /** 案件の稼動月数。明示された期間が無ければ作業記録の範囲から求める。 */
-    private int projectMonths(Project project) {
-        LocalDate start = project.getStartDate();
-        LocalDate end = project.getEndDate();
-        if (start == null || end == null) {
-            List<WorkEntry> all = workEntryRepository.findByProjectOrderByWorkDateAsc(project);
-            if (all.isEmpty()) {
-                return 0;
-            }
-            if (start == null) {
-                start = all.get(0).getWorkDate();
-            }
-            if (end == null) {
-                end = all.get(all.size() - 1).getWorkDate();
+    /**
+     * 統合先の稼動月数。明示された期間が無ければ、束ねた全案件の作業記録から求める。
+     * 機能ごとに分かれた案件は稼動期間が重なるため、合計ではなく全体の範囲で数える。
+     */
+    private int mergedMonths(Project target) {
+        LocalDate start = target.getStartDate();
+        LocalDate end = target.getEndDate();
+        if (start != null && end != null) {
+            return monthsBetween(start, end);
+        }
+        List<WorkEntry> all = new ArrayList<>();
+        for (Project p : projectRepository.findAll()) {
+            if (p.careerTarget().getId() != null && p.careerTarget().getId().equals(target.getId())) {
+                all.addAll(workEntryRepository.findByProjectOrderByWorkDateAsc(p));
             }
         }
-        return monthsBetween(start, end);
+        if (all.isEmpty()) {
+            return (start != null && end != null) ? monthsBetween(start, end) : 0;
+        }
+        LocalDate min = all.stream().map(WorkEntry::getWorkDate).min(Comparator.naturalOrder()).orElseThrow();
+        LocalDate max = all.stream().map(WorkEntry::getWorkDate).max(Comparator.naturalOrder()).orElseThrow();
+        return monthsBetween(start == null ? min : start, end == null ? max : end);
     }
 
     /** 実績生成の材料。日次メモの生ログと、取り込んだ過去週報の記述。 */

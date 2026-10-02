@@ -88,6 +88,21 @@ public class CareerController {
         return "redirect:/career?from=" + from + "&to=" + to;
     }
 
+    @PostMapping("/projects/{id}/merge")
+    public String mergeProject(@PathVariable Long id,
+                               @RequestParam(required = false) Long targetId,
+                               @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                               @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                               RedirectAttributes ra) {
+        try {
+            service.setCareerMergeInto(id, targetId);
+            ra.addFlashAttribute("message", "スキルシート上の統合先を更新しました");
+        } catch (IllegalArgumentException e) {
+            ra.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/career?from=" + from + "&to=" + to;
+    }
+
     @PostMapping("/projects/{id}")
     public String updateProject(@PathVariable Long id,
                                 @RequestParam(required = false) String industry,

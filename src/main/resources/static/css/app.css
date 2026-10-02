@@ -289,3 +289,6 @@ form.grid .actions { grid-column: 1 / -1; margin-top: 0; }
 .projectblock .tag.warn { color: var(--warn); border-color: var(--warn); }
 .projectblock form { margin-top: 14px; }
 .projectblock label { margin-bottom: 12px; }
+
+.inlinelabel { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; }
+.inlinelabel select { width: auto; margin: 0; }

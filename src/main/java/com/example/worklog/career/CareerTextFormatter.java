@@ -82,7 +82,18 @@ public class CareerTextFormatter {
         if (body == null || body.isBlank()) {
             return;
         }
-        sb.append(heading).append('\n').append(body.strip()).append('\n');
+        sb.append(heading).append('\n').append(stripLeadingHeading(heading, body)).append('\n');
+    }
+
+    /**
+     * 本文の先頭に見出しがそのまま入っている場合は取り除く。
+     * 既存のシートから貼り付けると「[概要]」ごと入ってきて、見出しが二重になるため。
+     */
+    private String stripLeadingHeading(String heading, String body) {
+        String stripped = body.strip();
+        return stripped.startsWith(heading)
+                ? stripped.substring(heading.length()).strip()
+                : stripped;
     }
 
     /**

@@ -69,6 +69,20 @@ public class Project {
     @Column
     private LocalDate endDate;
 
+    /**
+     * スキルシート上の統合先。
+     *
+     * <p>実際には 1 つの案件だが、機能ごとに分かれて動いている場合に使う。
+     * 週報の作業内容欄は機能ごとの区切り（▶ ◯◯）が要るので案件は分けたまま残し、
+     * スキルシートの業務実績では統合先に束ねて 1 ブロックとして出す。
+     *
+     * <p>親子関係を表すものではなく、あくまで出力をまとめる指定。
+     * 統合先の案件が持つ業種・概要・使用技術などが、束ねた全体の情報になる。
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "career_merge_into_id")
+    private Project careerMergeInto;
+
     /** 使用技術。経験年数はこの紐付けと案件期間から集計する。 */
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "project_technology",
@@ -176,6 +190,23 @@ public class Project {
 
     public void setEndDate(LocalDate endDate) {
         this.endDate = endDate;
+    }
+
+    public Project getCareerMergeInto() {
+        return careerMergeInto;
+    }
+
+    public void setCareerMergeInto(Project careerMergeInto) {
+        this.careerMergeInto = careerMergeInto;
+    }
+
+    /** スキルシートで実際に使われる案件。統合先があればそちら。 */
+    public Project careerTarget() {
+        return careerMergeInto == null ? this : careerMergeInto;
+    }
+
+    public boolean isMerged() {
+        return careerMergeInto != null;
     }
 
     public List<Technology> getTechnologies() {

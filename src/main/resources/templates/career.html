@@ -79,9 +79,32 @@
         <details th:each="p : ${projects}" class="projectblock">
             <summary>
                 <span th:text="${p.name}">案件</span>
-                <span class="tag" th:if="${p.publicDescription}" th:text="${p.publicDescription}">社外向け名</span>
-                <span class="tag warn" th:unless="${p.publicDescription}">未設定</span>
+                <span class="tag" th:if="${p.merged}"
+                      th:text="'→ ' + ${p.careerMergeInto.name} + ' に統合'">統合先</span>
+                <span class="tag" th:if="${!p.merged and !#strings.isEmpty(p.publicDescription)}"
+                      th:text="${p.publicDescription}">社外向け名</span>
+                <span class="tag warn"
+                      th:if="${!p.merged and #strings.isEmpty(p.publicDescription)}">未設定</span>
             </summary>
+
+            <form method="post" th:action="@{/career/projects/{id}/merge(id=${p.id})}" class="row">
+                <input type="hidden" name="from" th:value="${from}">
+                <input type="hidden" name="to" th:value="${to}">
+                <label class="inlinelabel">スキルシート上の統合先
+                    <select name="targetId">
+                        <option value="">（統合しない）</option>
+                        <option th:each="o : ${projects}" th:if="${o.id != p.id and !o.merged}"
+                                th:value="${o.id}" th:text="${o.name}"
+                                th:selected="${p.merged and p.careerMergeInto.id == o.id}">案件</option>
+                    </select>
+                </label>
+                <button type="submit" class="tiny secondary">設定</button>
+            </form>
+            <p class="hint" th:if="${p.merged}">
+                この案件はスキルシートでは統合先にまとめて出力されます。
+                下の項目は使われません（統合先の項目が使われます）。
+                週報の作業内容欄では引き続き独立した区切りとして出ます。
+            </p>
 
             <form method="post" th:action="@{/career/projects/{id}(id=${p.id})}">
                 <input type="hidden" name="from" th:value="${from}">

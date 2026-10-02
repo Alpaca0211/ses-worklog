@@ -91,6 +91,19 @@ class CareerTextFormatterTest {
     }
 
     @Test
+    void 本文に見出しが含まれていても二重にしない() {
+        // 既存のシートから貼り付けると「[概要]」ごと入ってくる
+        CareerEntry e = new CareerEntry(null, "担当案件", "[概要]\n大手◯◯で用いるシステムの保守開発。",
+                null, null, null,
+                LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), 1, 0, List.of(), List.of());
+
+        String text = formatter.format(new CareerDraft(List.of(e), List.of(), List.of()));
+
+        assertThat(text).contains("[概要]\n大手◯◯で用いるシステムの保守開発。");
+        assertThat(text).doesNotContain("[概要]\n[概要]");
+    }
+
+    @Test
     void 対象が無ければ空文字を返す() {
         assertThat(formatter.format(new CareerDraft(List.of(), List.of(), List.of()))).isEmpty();
         assertThat(formatter.format(null)).isEmpty();
