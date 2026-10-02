@@ -22,7 +22,8 @@ public class MasterDataSeeder {
     @Bean
     ApplicationRunner seedMasterData(ProjectRepository projects,
                                      TaskTypeRepository taskTypes,
-                                     PerformanceTemplateRepository templates) {
+                                     PerformanceTemplateRepository templates,
+                                     TechnologyRepository technologies) {
         return args -> {
             if (projects.count() == 0) {
                 projects.saveAll(List.of(
@@ -56,6 +57,33 @@ public class MasterDataSeeder {
                         new PerformanceTemplate("担当業務について、期限を守り安定して遂行できている。", 3)));
                 log.info("【業務遂行】1文目の定型文を投入しました: {} 件", templates.count());
             }
+            if (technologies.count() == 0) {
+                // スキルシートの技能歴に挙げる候補。案件に紐付けると経験年数が自動で積み上がる
+                seedTechnologies(technologies);
+                log.info("技術マスタを投入しました: {} 件。/career から案件に紐付けてください。",
+                        technologies.count());
+            }
         };
+    }
+
+    /**
+     * 技能歴に挙げる候補。案件に紐付けると、その案件の期間が経験年数へ積み上がる。
+     * 過不足は画面から追加・無効化して調整する。
+     */
+    private void seedTechnologies(TechnologyRepository technologies) {
+        String[] languages = {"Java", "Spring Boot", "Thymeleaf", "JSP", "JavaScript", "TypeScript",
+                "jQuery", "React", "Vue.js", "Node.js", "HTML", "CSS", "Shell",
+                "SQL", "PostgreSQL", "MySQL", "Oracle"};
+        String[] tools = {"Windows", "Linux", "Git", "GitHub", "GitLab", "SVN",
+                "Eclipse", "IntelliJ IDEA", "Docker", "AWS", "Jenkins", "Redmine"};
+
+        int order = 1;
+        for (String name : languages) {
+            technologies.save(new Technology(name, TechnologyCategory.LANGUAGE_FRAMEWORK, order++));
+        }
+        order = 1;
+        for (String name : tools) {
+            technologies.save(new Technology(name, TechnologyCategory.OS_TOOL, order++));
+        }
     }
 }

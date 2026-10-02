@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>職務経歴の下書き</title>
+    <title>スキルシートの下書き</title>
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
 <body>
 <header>
-    <h1>職務経歴の下書き</h1>
+    <h1>スキルシートの下書き</h1>
     <nav>
         <a th:href="@{/work}">作業記録</a>
         <a th:href="@{/}">日次メモ</a>
         <a th:href="@{/weekly}">週報</a>
-        <a th:href="@{/career}" class="active">職務経歴</a>
+        <a th:href="@{/career}" class="active">スキルシート</a>
         <a th:href="@{/import}">取り込み</a>
         <a th:href="@{/terms}">禁止用語辞書</a>
     </nav>
@@ -28,8 +28,9 @@
     <p class="flash" th:if="${message}" th:text="${message}"></p>
 
     <p class="hint">
-        期間と件数は作業記録を集計したものです。「取り組み・実績」だけを日次メモと
-        取り込んだ過去週報から生成します。<b>提出前に必ず内容を確認してください。</b>
+        期間・稼動月数・担当業務の件数・経験年数はすべて記録の集計です。
+        LLM を使うのは「取り組み・実績」の文章化だけ。
+        <b>提出前に必ず内容を確認してください。</b>
     </p>
 
     <form method="get" th:action="@{/career}" class="fields">
@@ -45,11 +46,7 @@
         </div>
     </form>
 
-    <section th:if="${draft.isEmpty()}">
-        <p class="hint">この期間の作業記録がありません。</p>
-    </section>
-
-    <section th:unless="${draft.isEmpty()}">
+    <section>
         <h2>生成結果</h2>
         <pre class="output" id="career" th:text="${careerText}">-</pre>
         <div class="actions">
@@ -58,37 +55,108 @@
         <p class="hint" th:if="${generated and !draft.hasAchievements()}">
             日次メモに経歴として書ける記述が見つかりませんでした。無理に埋めない設計にしています。
         </p>
-        <p class="hint">
-            「取り組み・実績」は期間全体のものとして出力します。日次メモは案件に紐付けていないため
-            （紐付けを求めると入力の手間が増えます）、案件ごとに割り当てることはできません。
+        <p class="hint" th:if="${!draft.hasTechnologyExperience()}">
+            技能歴が空です。下の「案件の詳細」で使用技術を紐付けると、
+            案件期間の合計として経験年数が自動で積み上がります。
         </p>
     </section>
 
     <section>
-        <h2>案件の社外向け説明</h2>
+        <h2>案件の詳細</h2>
         <p class="hint">
-            職務経歴では案件名を伏せるため、そのままでは「担当案件」が並んで区別できません。
-            案件ごとに社外へ出せる説明を設定してください。例:「Webサービスの保守開発」
+            社外に出る項目です。案件名は伏せ、「◯◯業界の△△システム」の粒度で書きます。
+            期間を空にすると作業記録の日付範囲から自動で算出します
+            （作業記録の無い過去案件は期間を明示してください）。
         </p>
-        <table>
-            <thead>
-            <tr><th>案件（社内）</th><th>社外向けの説明</th><th></th></tr>
-            </thead>
-            <tbody>
-            <tr th:each="p : ${projects}" th:classappend="${p.active} ? '' : 'disabled'">
-                <td th:text="${p.name}">案件</td>
-                <td colspan="2">
-                    <form method="post" th:action="@{/career/projects/{id}/describe(id=${p.id})}" class="row">
-                        <input type="hidden" name="from" th:value="${from}">
-                        <input type="hidden" name="to" th:value="${to}">
-                        <input type="text" name="description" th:value="${p.publicDescription}"
-                               placeholder="例: Webサービスの保守開発">
-                        <button type="submit" class="tiny">保存</button>
-                    </form>
-                </td>
-            </tr>
-            </tbody>
-        </table>
+
+        <details th:each="p : ${projects}" class="projectblock">
+            <summary>
+                <span th:text="${p.name}">案件</span>
+                <span class="tag" th:if="${p.publicDescription}" th:text="${p.publicDescription}">社外向け名</span>
+                <span class="tag warn" th:unless="${p.publicDescription}">未設定</span>
+            </summary>
+
+            <form method="post" th:action="@{/career/projects/{id}(id=${p.id})}">
+                <input type="hidden" name="from" th:value="${from}">
+                <input type="hidden" name="to" th:value="${to}">
+
+                <div class="fields">
+                    <label>業種
+                        <input type="text" name="industry" th:value="${p.industry}" list="industry-options"
+                               placeholder="例: 金融">
+                    </label>
+                    <label>社外向けの案件名（≪…≫）
+                        <input type="text" name="publicDescription" th:value="${p.publicDescription}"
+                               placeholder="例: 融資管理システム金利計算対応">
+                    </label>
+                </div>
+
+                <label>[概要]
+                    <textarea name="overview" rows="4" th:text="${p.overview}"
+                              placeholder="例: 大手◯◯で用いる△△システムの保守開発。…"></textarea>
+                </label>
+
+                <div class="fields">
+                    <label>[チーム構成]
+                        <input type="text" name="teamComposition" th:value="${p.teamComposition}"
+                               placeholder="例: PL(1名)、メンバー(自身含む4名)">
+                    </label>
+                    <label>[規模]（任意）
+                        <input type="text" name="projectScale" th:value="${p.projectScale}"
+                               placeholder="例: プロジェクト画面数:約10、担当画面数:10">
+                    </label>
+                    <label>環境
+                        <input type="text" name="environment" th:value="${p.environment}"
+                               placeholder="例: Windows / Linux">
+                    </label>
+                </div>
+
+                <div class="fields">
+                    <label>開始日（空なら作業記録から算出）
+                        <input type="date" name="startDate" th:value="${p.startDate}">
+                    </label>
+                    <label>終了日（空なら作業記録から算出）
+                        <input type="date" name="endDate" th:value="${p.endDate}">
+                    </label>
+                </div>
+
+                <fieldset class="taskfield">
+                    <legend>使用技術 — 言語・フレームワーク</legend>
+                    <div class="checks">
+                        <label th:each="t : ${technologies.?[category.name() == 'LANGUAGE_FRAMEWORK']}"
+                               class="check">
+                            <input type="checkbox" name="technologyIds" th:value="${t.id}"
+                                   th:checked="${p.usesTechnology(t.id)}">
+                            <span th:text="${t.name}">技術</span>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <fieldset class="taskfield">
+                    <legend>使用技術 — OS・その他（ツールなど）</legend>
+                    <div class="checks">
+                        <label th:each="t : ${technologies.?[category.name() == 'OS_TOOL']}" class="check">
+                            <input type="checkbox" name="technologyIds" th:value="${t.id}"
+                                   th:checked="${p.usesTechnology(t.id)}">
+                            <span th:text="${t.name}">技術</span>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <div class="actions"><button type="submit">保存</button></div>
+            </form>
+        </details>
+
+        <datalist id="industry-options">
+            <option value="金融"></option>
+            <option value="小売業"></option>
+            <option value="通信"></option>
+            <option value="製造"></option>
+            <option value="物流"></option>
+            <option value="医療"></option>
+            <option value="IT企業"></option>
+            <option value="その他"></option>
+        </datalist>
     </section>
 </main>
 <script th:src="@{/js/copy.js}"></script>

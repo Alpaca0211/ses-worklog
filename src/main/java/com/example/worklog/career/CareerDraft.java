@@ -1,16 +1,17 @@
 package com.example.worklog.career;
 
+import com.example.worklog.domain.TechnologyCategory;
 import java.util.List;
 
 /**
- * 職務経歴の下書き 1 期間分。
+ * スキルシートの下書き。
  *
- * <p>案件別の実績と、期間全体の取り組みを分けて持つ。
- * 日次メモは案件に紐付けていない（紐付けを求めると入力の手間が増え、
- * 記録が続かなくなる）ため、取り組みを案件へ割り当てることはできない。
- * 特定の案件に属するかのように見せるより、期間全体のものとして示すほうが正確。
+ * <p>業務実績は指定した期間に絞るが、技能歴は全案件から集計する。
+ * 経験年数は積み上げであり、表示期間で切ると値が変わってしまうため。
  */
-public record CareerDraft(List<CareerEntry> entries, List<String> achievements) {
+public record CareerDraft(List<CareerEntry> entries,
+                          List<String> achievements,
+                          List<TechnologyExperience> technologyExperience) {
 
     public boolean isEmpty() {
         return entries == null || entries.isEmpty();
@@ -18,5 +19,22 @@ public record CareerDraft(List<CareerEntry> entries, List<String> achievements) 
 
     public boolean hasAchievements() {
         return achievements != null && !achievements.isEmpty();
+    }
+
+    public List<TechnologyExperience> languages() {
+        return byCategory(TechnologyCategory.LANGUAGE_FRAMEWORK);
+    }
+
+    public List<TechnologyExperience> tools() {
+        return byCategory(TechnologyCategory.OS_TOOL);
+    }
+
+    private List<TechnologyExperience> byCategory(TechnologyCategory category) {
+        return technologyExperience == null ? List.of()
+                : technologyExperience.stream().filter(t -> t.category() == category).toList();
+    }
+
+    public boolean hasTechnologyExperience() {
+        return technologyExperience != null && !technologyExperience.isEmpty();
     }
 }

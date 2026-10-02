@@ -13,9 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 職務経歴エントリの組み立て。
+ * スキルシートの下書きを組み立てる。
  *
- * <p>期間と件数は作業記録を集計して求める（決定論的処理）。
+ * <p>期間・稼動月数・担当業務の件数・経験年数はすべて記録の集計で求める（決定論的処理）。
  * 文章化が要るのは「取り組み・実績」だけで、そこに限って LLM を使う。
  */
 @Service
@@ -25,17 +25,20 @@ public class CareerService {
     private final DailyLogRepository dailyLogRepository;
     private final PastWeeklyReportRepository pastReportRepository;
     private final ProjectRepository projectRepository;
+    private final TechnologyRepository technologyRepository;
     private final AchievementGenerator achievementGenerator;
 
     public CareerService(WorkEntryRepository workEntryRepository,
                          DailyLogRepository dailyLogRepository,
                          PastWeeklyReportRepository pastReportRepository,
                          ProjectRepository projectRepository,
+                         TechnologyRepository technologyRepository,
                          AchievementGenerator achievementGenerator) {
         this.workEntryRepository = workEntryRepository;
         this.dailyLogRepository = dailyLogRepository;
         this.pastReportRepository = pastReportRepository;
         this.projectRepository = projectRepository;
+        this.technologyRepository = technologyRepository;
         this.achievementGenerator = achievementGenerator;
     }
 
@@ -44,49 +47,133 @@ public class CareerService {
         return projectRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
+    public List<Technology> technologies() {
+        return technologyRepository.findAllByOrderByCategoryAscDisplayOrderAscIdAsc();
+    }
+
     @Transactional
-    public void describe(Long projectId, String description) {
+    public void updateProject(Long projectId, ProjectDetails details) {
         projectRepository.findById(projectId).ifPresent(p -> {
-            p.setPublicDescription(description == null ? null : description.trim());
+            p.setIndustry(trim(details.industry()));
+            p.setPublicDescription(trim(details.publicDescription()));
+            p.setOverview(trim(details.overview()));
+            p.setTeamComposition(trim(details.teamComposition()));
+            p.setProjectScale(trim(details.projectScale()));
+            p.setEnvironment(trim(details.environment()));
+            p.setStartDate(details.startDate());
+            p.setEndDate(details.endDate());
+            p.setTechnologies(details.technologyIds() == null ? List.of()
+                    : technologyRepository.findAllById(details.technologyIds()));
             projectRepository.save(p);
         });
     }
 
+    /** 画面から受け取る案件の詳細。 */
+    public record ProjectDetails(String industry, String publicDescription, String overview,
+                                 String teamComposition, String projectScale, String environment,
+                                 LocalDate startDate, LocalDate endDate, List<Long> technologyIds) {
+    }
+
     /**
-     * 期間内の作業記録を案件ごとにまとめる。
-     *
      * @param generateAchievements 実績の文章を LLM で生成するか。
      *                             集計だけ見たい場合に待たされないよう分けている
      */
     @Transactional(readOnly = true)
     public CareerDraft build(LocalDate from, LocalDate to, boolean generateAchievements) {
-        List<WorkEntry> entries =
-                workEntryRepository.findByWorkDateBetweenOrderByWorkDateAscProjectDisplayOrderAscIdAsc(from, to);
-        if (entries.isEmpty()) {
-            return new CareerDraft(List.of(), List.of());
-        }
+        List<WorkEntry> entries = workEntryRepository
+                .findByWorkDateBetweenOrderByWorkDateAscProjectDisplayOrderAscIdAsc(from, to);
         Map<Project, List<WorkEntry>> byProject = entries.stream()
                 .collect(Collectors.groupingBy(WorkEntry::getProject, LinkedHashMap::new, Collectors.toList()));
 
         List<CareerEntry> result = new ArrayList<>();
         for (Map.Entry<Project, List<WorkEntry>> group : byProject.entrySet()) {
-            List<WorkEntry> list = group.getValue();
-            LocalDate start = list.stream().map(WorkEntry::getWorkDate).min(Comparator.naturalOrder()).orElse(from);
-            LocalDate end = list.stream().map(WorkEntry::getWorkDate).max(Comparator.naturalOrder()).orElse(to);
-
-            result.add(new CareerEntry(
-                    group.getKey().getPublicLabel(),
-                    start,
-                    end,
-                    monthsBetween(start, end),
-                    list.size(),
-                    countTaskTypes(list)));
+            result.add(toEntry(group.getKey(), group.getValue(), from, to));
         }
+
         // 日次メモは案件に紐付かないため、取り組みは期間全体で 1 回だけ生成する
         List<String> achievements = generateAchievements
                 ? achievementGenerator.generate(materials(from, to))
                 : List.of();
-        return new CareerDraft(result, achievements);
+
+        return new CareerDraft(result, achievements, aggregateTechnologyExperience());
+    }
+
+    private CareerEntry toEntry(Project project, List<WorkEntry> list, LocalDate from, LocalDate to) {
+        LocalDate start = resolveStart(project, list, from);
+        LocalDate end = resolveEnd(project, list, to);
+        return new CareerEntry(
+                project.getIndustry(),
+                project.getPublicLabel(),
+                project.getOverview(),
+                project.getTeamComposition(),
+                project.getProjectScale(),
+                project.getEnvironment(),
+                start,
+                end,
+                monthsBetween(start, end),
+                list.size(),
+                countTaskTypes(list),
+                project.getTechnologies().stream().map(Technology::getName).toList());
+    }
+
+    /** 明示された期間を優先する。作業記録を持たない過去案件を登録できるようにするため。 */
+    private LocalDate resolveStart(Project project, List<WorkEntry> list, LocalDate fallback) {
+        if (project.getStartDate() != null) {
+            return project.getStartDate();
+        }
+        return list.stream().map(WorkEntry::getWorkDate).min(Comparator.naturalOrder()).orElse(fallback);
+    }
+
+    private LocalDate resolveEnd(Project project, List<WorkEntry> list, LocalDate fallback) {
+        if (project.getEndDate() != null) {
+            return project.getEndDate();
+        }
+        return list.stream().map(WorkEntry::getWorkDate).max(Comparator.naturalOrder()).orElse(fallback);
+    }
+
+    /**
+     * 技能歴。その技術を使った案件の期間を合計する。
+     *
+     * <p>表示期間では絞らない。経験年数は積み上げであり、
+     * 表示の都合で値が変わってはならないため。
+     */
+    @Transactional(readOnly = true)
+    public List<TechnologyExperience> aggregateTechnologyExperience() {
+        Map<Technology, Integer> totals = new LinkedHashMap<>();
+        for (Project project : projectRepository.findAll()) {
+            int months = projectMonths(project);
+            if (months <= 0) {
+                continue;
+            }
+            for (Technology tech : project.getTechnologies()) {
+                totals.merge(tech, months, Integer::sum);
+            }
+        }
+        return totals.entrySet().stream()
+                .map(e -> new TechnologyExperience(e.getKey().getName(), e.getKey().getCategory(), e.getValue()))
+                .sorted(Comparator.comparing(TechnologyExperience::category)
+                        .thenComparing(Comparator.comparingInt(TechnologyExperience::months).reversed()))
+                .toList();
+    }
+
+    /** 案件の稼動月数。明示された期間が無ければ作業記録の範囲から求める。 */
+    private int projectMonths(Project project) {
+        LocalDate start = project.getStartDate();
+        LocalDate end = project.getEndDate();
+        if (start == null || end == null) {
+            List<WorkEntry> all = workEntryRepository.findByProjectOrderByWorkDateAsc(project);
+            if (all.isEmpty()) {
+                return 0;
+            }
+            if (start == null) {
+                start = all.get(0).getWorkDate();
+            }
+            if (end == null) {
+                end = all.get(all.size() - 1).getWorkDate();
+            }
+        }
+        return monthsBetween(start, end);
     }
 
     /** 実績生成の材料。日次メモの生ログと、取り込んだ過去週報の記述。 */
@@ -111,6 +198,7 @@ public class CareerService {
                 && ym <= to.getYear() * 100 + to.getMonthValue();
     }
 
+    /** 月単位の通算。シートに合わせて開始月と終了月の両方を含める。 */
     private int monthsBetween(LocalDate start, LocalDate end) {
         return (int) ChronoUnit.MONTHS.between(start.withDayOfMonth(1), end.withDayOfMonth(1)) + 1;
     }
@@ -123,5 +211,9 @@ public class CareerService {
                 .map(e -> new CareerEntry.TaskCount(e.getKey(), e.getValue()))
                 .sorted((a, b) -> Long.compare(b.count(), a.count()))
                 .toList();
+    }
+
+    private String trim(String s) {
+        return (s == null || s.isBlank()) ? null : s.trim();
     }
 }

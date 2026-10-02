@@ -4,38 +4,98 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 /**
- * 職務経歴エントリを、職務経歴書へ貼り付けられるテキストへ組み立てる。
+ * スキルシートへ貼り付けられるテキストへ組み立てる。
  * 構造化データからの文字列生成であり、LLM は使わない。
+ *
+ * <p>体裁は現在運用しているスキルシート（技能経歴書）の項目に合わせてある。
+ * 業務実績は案件ごとに ≪案件名≫・[概要]・[担当業務]・[チーム構成]・[規模] の順。
  */
 @Service
 public class CareerTextFormatter {
 
     public String format(CareerDraft draft) {
-        if (draft == null || draft.isEmpty()) {
+        if (draft == null) {
             return "";
         }
-        List<CareerEntry> entries = draft.entries();
         StringBuilder sb = new StringBuilder();
-        for (CareerEntry e : entries) {
-            if (sb.length() > 0) {
+        appendTechnologies(sb, draft);
+        appendEntries(sb, draft);
+        appendAchievements(sb, draft);
+        return sb.toString().stripTrailing();
+    }
+
+    /** 技能歴。経験年数は案件期間の合計なので、案件を登録するだけで最新になる。 */
+    private void appendTechnologies(StringBuilder sb, CareerDraft draft) {
+        if (!draft.hasTechnologyExperience()) {
+            return;
+        }
+        sb.append("■ 技能歴\n");
+        appendTechnologyBlock(sb, "【言語・フレームワーク】", draft.languages());
+        appendTechnologyBlock(sb, "【OS・その他（ツールなど）】", draft.tools());
+        sb.append('\n');
+    }
+
+    private void appendTechnologyBlock(StringBuilder sb, String heading, List<TechnologyExperience> items) {
+        if (items.isEmpty()) {
+            return;
+        }
+        sb.append(heading).append('\n');
+        for (TechnologyExperience t : items) {
+            sb.append(t.name()).append('\t').append(t.duration()).append('\n');
+        }
+    }
+
+    private void appendEntries(StringBuilder sb, CareerDraft draft) {
+        if (draft.isEmpty()) {
+            return;
+        }
+        sb.append("■ 業務実績\n");
+        int no = 1;
+        for (CareerEntry e : draft.entries()) {
+            if (no > 1) {
                 sb.append('\n');
             }
-            sb.append("【担当案件】").append(e.publicLabel()).append('\n');
-            sb.append("【期間】").append(e.period()).append('\n');
+            sb.append(no++).append('.');
+            if (e.has(e.industry())) {
+                sb.append(' ').append(e.industry());
+            }
+            sb.append('\n');
+            sb.append("≪").append(e.publicLabel()).append("≫\n");
 
-            String tasks = e.taskSummary();
-            if (!tasks.isBlank()) {
-                sb.append("【担当業務】").append(tasks).append('\n');
+            appendSection(sb, "[概要]", e.overview());
+            appendSection(sb, "[担当業務]", e.taskSummary());
+            appendSection(sb, "[チーム構成]", e.teamComposition());
+            appendSection(sb, "[規模]", e.projectScale());
+
+            sb.append("期間: ").append(e.periodRange()).append('\n');
+            sb.append("稼動月数: ").append(e.duration()).append('\n');
+            if (e.has(e.environment())) {
+                sb.append("環境: ").append(e.environment()).append('\n');
+            }
+            if (!e.technologies().isEmpty()) {
+                sb.append("使用技術: ").append(e.technologySummary()).append('\n');
             }
         }
-        if (draft.hasAchievements()) {
-            // 案件別ではなく期間全体の取り組みとして示す。
-            // 日次メモを案件に紐付けていない以上、特定の案件のものとは言えないため。
-            sb.append("\n【取り組み・実績】").append('\n');
-            for (String a : draft.achievements()) {
-                sb.append('・').append(a).append('\n');
-            }
+    }
+
+    private void appendSection(StringBuilder sb, String heading, String body) {
+        if (body == null || body.isBlank()) {
+            return;
         }
-        return sb.toString().stripTrailing();
+        sb.append(heading).append('\n').append(body.strip()).append('\n');
+    }
+
+    /**
+     * 取り組みは案件別ではなく期間全体として示す。
+     * 日次メモを案件に紐付けていない以上、特定の案件のものとは言えないため。
+     */
+    private void appendAchievements(StringBuilder sb, CareerDraft draft) {
+        if (!draft.hasAchievements()) {
+            return;
+        }
+        sb.append("\n■ 取り組み・実績\n");
+        for (String a : draft.achievements()) {
+            sb.append('・').append(a).append('\n');
+        }
     }
 }

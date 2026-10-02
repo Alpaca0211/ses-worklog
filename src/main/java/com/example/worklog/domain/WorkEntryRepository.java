@@ -11,6 +11,9 @@ public interface WorkEntryRepository extends JpaRepository<WorkEntry, Long> {
 
     List<WorkEntry> findByWorkDateOrderByIdAsc(LocalDate workDate);
 
+    /** 案件の稼動期間を求めるために、その案件の記録を日付順で取る。 */
+    List<WorkEntry> findByProjectOrderByWorkDateAsc(Project project);
+
     /**
      * 過去に使った施策名の候補。入力欄のサジェストに使う。
      * 毎回打ち直させると「リリース」と「リリリース」のような表記ゆれが生まれ、
