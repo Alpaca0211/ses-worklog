@@ -2,6 +2,8 @@ package com.example.worklog.pipeline;
 
 import com.example.worklog.domain.DailyLog;
 import com.example.worklog.domain.DailyLogRepository;
+import com.example.worklog.domain.EvaluationItem;
+import com.example.worklog.domain.EvaluationItemRepository;
 import com.example.worklog.masking.RiskScanner.RiskHint;
 import java.time.LocalDate;
 import java.util.List;
@@ -15,15 +17,32 @@ public class DailyLogService {
 
     private final SanitizePipeline pipeline;
     private final DailyLogRepository repository;
+    private final EvaluationItemRepository evaluationItemRepository;
 
-    public DailyLogService(SanitizePipeline pipeline, DailyLogRepository repository) {
+    public DailyLogService(SanitizePipeline pipeline, DailyLogRepository repository,
+                           EvaluationItemRepository evaluationItemRepository) {
         this.pipeline = pipeline;
         this.repository = repository;
+        this.evaluationItemRepository = evaluationItemRepository;
+    }
+
+    @Transactional(readOnly = true)
+    public List<EvaluationItem> evaluationItems() {
+        return evaluationItemRepository.findByActiveTrueOrderByDisplayOrderAscIdAsc();
+    }
+
+    /** 既存のメモに評価項目を付け直す。記録を取り始める前のメモを後から分類するため。 */
+    @Transactional
+    public void tag(Long logId, List<Long> evaluationItemIds) {
+        DailyLog log = find(logId);
+        log.setEvaluationItems(evaluationItemIds == null ? List.of()
+                : evaluationItemRepository.findAllById(evaluationItemIds));
+        repository.save(log);
     }
 
     /** 秘匿化して保存する。戻り値は保存されたログ。 */
     @Transactional
-    public DailyLog record(LocalDate workDate, String rawText) {
+    public DailyLog record(LocalDate workDate, String rawText, List<Long> evaluationItemIds) {
         SanitizedResult result = pipeline.sanitize(rawText);
         DailyLog entity = new DailyLog(
                 workDate,
@@ -33,6 +52,9 @@ public class DailyLogService {
                 result.status(),
                 result.maskedCount(),
                 joinHints(result.riskHints()));
+        if (evaluationItemIds != null && !evaluationItemIds.isEmpty()) {
+            entity.setEvaluationItems(evaluationItemRepository.findAllById(evaluationItemIds));
+        }
         return repository.save(entity);
     }
 

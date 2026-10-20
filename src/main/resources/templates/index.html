@@ -13,6 +13,7 @@
         <a th:href="@{/work}">作業記録</a>
         <a th:href="@{/}" class="active">日次メモ</a>
         <a th:href="@{/weekly}">週報</a>
+        <a th:href="@{/evaluation}">評価</a>
         <a th:href="@{/career}">スキルシート</a>
         <a th:href="@{/import}">取り込み</a>
         <a th:href="@{/terms}">禁止用語辞書</a>
@@ -40,6 +41,16 @@
                       placeholder="例: A社決済APIのタイムアウト調査。原因はコネクションプール枯渇。田中さんに共有して来週修正PR出す"></textarea>
         </label>
         <p class="error" th:if="${#fields.hasErrors('rawText')}" th:errors="*{rawText}"></p>
+
+        <fieldset class="taskfield" th:if="${!evaluationItems.isEmpty()}">
+            <legend>人事評価の項目（任意・複数選択可）</legend>
+            <div class="checks">
+                <label th:each="e : ${evaluationItems}" class="check">
+                    <input type="checkbox" name="evaluationItemIds" th:value="${e.id}">
+                    <span th:text="${e.name}">項目</span>
+                </label>
+            </div>
+        </fieldset>
 
         <div class="actions">
             <button type="submit" th:formaction="@{/preview}" class="secondary">秘匿化プレビュー</button>

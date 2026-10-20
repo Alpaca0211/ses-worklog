@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>評価材料の充足状況</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<header>
+    <h1>評価材料の充足状況</h1>
+    <nav>
+        <a th:href="@{/work}">作業記録</a>
+        <a th:href="@{/}">日次メモ</a>
+        <a th:href="@{/weekly}">週報</a>
+        <a th:href="@{/evaluation}" class="active">評価</a>
+        <a th:href="@{/career}">スキルシート</a>
+        <a th:href="@{/import}">取り込み</a>
+        <a th:href="@{/terms}">禁止用語辞書</a>
+    </nav>
+</header>
+
+<main>
+    <p class="hint">
+        日次メモに付けた評価項目ごとに材料を集めます。生成は行わず、記録をそのまま並べています。
+        <b>期末に材料を探すのではなく、期中に足りない項目へ気付くための画面です。</b>
+    </p>
+
+    <form method="get" th:action="@{/evaluation}" class="fields">
+        <label>開始
+            <input type="date" name="from" th:value="${from}">
+        </label>
+        <label>終了
+            <input type="date" name="to" th:value="${to}">
+        </label>
+        <div class="actions"><button type="submit" class="secondary">集計する</button></div>
+    </form>
+
+    <section th:if="${summary.hasEmptyItems()}">
+        <h2>材料が無い項目</h2>
+        <p class="hint">この期間に記録がありません。期中であれば、意識して動いて記録を残す余地があります。</p>
+        <ul class="chips">
+            <li th:each="n : ${summary.emptyItems()}" th:text="${n}" class="warn">項目</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>項目ごとの材料</h2>
+        <div th:each="item : ${summary.items()}" class="dayblock">
+            <h3>
+                <span th:text="${item.itemName()}">項目</span>
+                <span class="tag" th:text="${item.count()} + ' 件'">0 件</span>
+            </h3>
+            <p class="hint" th:if="${item.isEmpty()}">材料がありません。</p>
+            <div th:unless="${item.isEmpty()}">
+                <pre th:id="'item-' + ${item.itemName()}" th:text="${item.asText()}"></pre>
+                <div class="actions">
+                    <button type="button" class="tiny secondary copy-btn"
+                            th:attr="data-target='item-' + ${item.itemName()}">コピー</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section th:if="${summary.untaggedCount() > 0}">
+        <h2>未分類のメモ</h2>
+        <p class="hint">
+            評価項目が付いていないメモが <b th:text="${summary.untaggedCount()}">0</b> 件あります。
+            分類すると上の集計に反映されます。
+        </p>
+        <ul class="logs">
+            <li th:each="l : ${untaggedLogs}">
+                <a th:href="@{/logs/{id}(id=${l.id})}">
+                    <span class="date" th:text="${l.workDate}">2026-10-21</span>
+                    <span class="excerpt" th:text="${#strings.abbreviate(l.outputText, 70)}">...</span>
+                </a>
+            </li>
+        </ul>
+    </section>
+</main>
+<script th:src="@{/js/copy.js}"></script>
+</body>
+</html>

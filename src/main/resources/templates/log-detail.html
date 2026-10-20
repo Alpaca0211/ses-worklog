@@ -13,12 +13,14 @@
         <a th:href="@{/work}">作業記録</a>
         <a th:href="@{/}">日次メモ</a>
         <a th:href="@{/weekly}">週報</a>
+        <a th:href="@{/evaluation}">評価</a>
         <a th:href="@{/career}">スキルシート</a>
         <a th:href="@{/import}">取り込み</a>
         <a th:href="@{/terms}">禁止用語辞書</a>
     </nav>
 </header>
 <main>
+    <p class="flash" th:if="${message}" th:text="${message}"></p>
     <p class="status">
         <b th:text="${log.workDate}">date</b>
         / <span th:text="${log.status.label}">status</span>
@@ -40,6 +42,24 @@
         <h3>辞書未登録の固有名詞候補</h3>
         <p class="hint" th:text="${log.riskHints}"></p>
     </div>
+
+    <section th:if="${!evaluationItems.isEmpty()}">
+        <h3>人事評価の項目</h3>
+        <p class="hint">このメモがどの評価項目に効くかを選びます。後から変更できます。</p>
+        <form method="post" th:action="@{/logs/{id}/tag(id=${log.id})}">
+            <fieldset class="taskfield">
+                <legend>項目（複数選択可）</legend>
+                <div class="checks">
+                    <label th:each="e : ${evaluationItems}" class="check">
+                        <input type="checkbox" name="evaluationItemIds" th:value="${e.id}"
+                               th:checked="${log.taggedWith(e.id)}">
+                        <span th:text="${e.name}">項目</span>
+                    </label>
+                </div>
+            </fieldset>
+            <div class="actions"><button type="submit">保存</button></div>
+        </form>
+    </section>
 
     <p><a th:href="@{/}">← 戻る</a></p>
 </main>

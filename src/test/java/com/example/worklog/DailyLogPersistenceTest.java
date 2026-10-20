@@ -30,7 +30,7 @@ class DailyLogPersistenceTest extends SanitizeTestBase {
 
     @Test
     void 生ログは暗号化されて保存され復号して読み出せる() {
-        DailyLog saved = logService.record(LocalDate.of(2026, 8, 27), "ヴェガ銀行の勘定系で障害調査");
+        DailyLog saved = logService.record(LocalDate.of(2026, 8, 27), "ヴェガ銀行の勘定系で障害調査", null);
 
         // アプリ経由では平文で読める
         assertThat(logService.find(saved.getId()).getRawText()).isEqualTo("ヴェガ銀行の勘定系で障害調査");
@@ -44,7 +44,7 @@ class DailyLogPersistenceTest extends SanitizeTestBase {
 
     @Test
     void 出力列には禁止用語が含まれない() {
-        DailyLog saved = logService.record(LocalDate.of(2026, 8, 27), "ヴェガ銀行の定例に参加");
+        DailyLog saved = logService.record(LocalDate.of(2026, 8, 27), "ヴェガ銀行の定例に参加", null);
 
         String output = jdbcTemplate.queryForObject(
                 "select output_text from daily_log where id = ?", String.class, saved.getId());

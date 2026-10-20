@@ -292,3 +292,6 @@ form.grid .actions { grid-column: 1 / -1; margin-top: 0; }
 
 .inlinelabel { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; }
 .inlinelabel select { width: auto; margin: 0; }
+
+/* 材料が無い評価項目。期中に手を打つべき対象として目立たせる */
+ul.chips li.warn { color: var(--warn); border-color: var(--warn); }

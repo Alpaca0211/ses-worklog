@@ -4,6 +4,8 @@ import com.example.worklog.crypto.EncryptedStringConverter;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 1日分の業務ログ。
@@ -47,6 +49,17 @@ public class DailyLog {
     /** 辞書未登録だが固有名詞の可能性がある語（RiskScanner の検出結果）。カンマ区切り。 */
     @Column(length = 2000)
     private String riskHints;
+
+    /**
+     * このメモが効く人事評価の項目。1 件が複数の項目に効くことがある。
+     * 分類は入力者が選ぶ。どの項目に効く行動かは本人が一番分かっており、
+     * 推測に任せると誤分類の確認作業が増えるため。
+     */
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "daily_log_evaluation_item",
+            joinColumns = @JoinColumn(name = "daily_log_id"),
+            inverseJoinColumns = @JoinColumn(name = "evaluation_item_id"))
+    private List<EvaluationItem> evaluationItems = new ArrayList<>();
 
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
@@ -95,6 +108,24 @@ public class DailyLog {
 
     public String getRiskHints() {
         return riskHints;
+    }
+
+    public List<EvaluationItem> getEvaluationItems() {
+        return evaluationItems;
+    }
+
+    public void setEvaluationItems(List<EvaluationItem> evaluationItems) {
+        this.evaluationItems = new ArrayList<>(evaluationItems);
+    }
+
+    /** 画面でのチェック状態の判定用。エンティティの同一性に依存せず id で比較する。 */
+    public boolean taggedWith(Long evaluationItemId) {
+        return evaluationItemId != null
+                && evaluationItems.stream().anyMatch(i -> evaluationItemId.equals(i.getId()));
+    }
+
+    public boolean isUntagged() {
+        return evaluationItems.isEmpty();
     }
 
     public Instant getCreatedAt() {

@@ -23,7 +23,8 @@ public class MasterDataSeeder {
     ApplicationRunner seedMasterData(ProjectRepository projects,
                                      TaskTypeRepository taskTypes,
                                      PerformanceTemplateRepository templates,
-                                     TechnologyRepository technologies) {
+                                     TechnologyRepository technologies,
+                                     EvaluationItemRepository evaluationItems) {
         return args -> {
             if (projects.count() == 0) {
                 projects.saveAll(List.of(
@@ -56,6 +57,15 @@ public class MasterDataSeeder {
                         new PerformanceTemplate("各案件の対応業務において、滞りなく期限以内に対応を実施した。", 2),
                         new PerformanceTemplate("担当業務について、期限を守り安定して遂行できている。", 3)));
                 log.info("【業務遂行】1文目の定型文を投入しました: {} 件", templates.count());
+            }
+            if (evaluationItems.count() == 0) {
+                // 人事評価の項目。週報のコメント欄の見出しと対応するものが多い
+                int order = 1;
+                for (String name : new String[]{"業務遂行", "報連相", "人間関係", "参加", "行動",
+                        "スキルアップ", "自己啓発・学習", "週報"}) {
+                    evaluationItems.save(new EvaluationItem(name, order++));
+                }
+                log.info("評価項目マスタを投入しました: {} 件", evaluationItems.count());
             }
             if (technologies.count() == 0) {
                 // スキルシートの技能歴に挙げる候補。案件に紐付けると経験年数が自動で積み上がる

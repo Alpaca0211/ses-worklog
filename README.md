@@ -70,7 +70,23 @@
 複数週で使い回されている行を**出現回数**で定型文と判定し、その週固有の記述だけを
 文体例として抽出する。キーワード列挙ではないため、語彙の変化に追従できる。
 
-### 5. スキルシートの下書き生成
+### 5. 人事評価の材料の可視化
+
+日次メモに評価項目を付けておくと、評価期間ごとに項目別の材料が集まる。
+
+```
+【業務遂行】      材料4件
+【報連相】        材料1件
+【自己啓発・学習】 材料なし  ← 期中に気付ける
+```
+
+**狙いは文章の生成ではなく、材料が無い項目が見えること。** 評価は期末に材料を
+探しても作れないため、不足が早く分かるほど打ち手が取れる。生成は行わず記録を並べる。
+
+分類は入力者が選ぶ。どの項目に効く行動かは本人が一番分かっており、
+推測に任せると誤分類の確認作業で手間が増えるため。
+
+### 6. スキルシートの下書き生成
 
 運用中のスキルシート（技能経歴書）の項目に合わせて出力する。
 
@@ -254,6 +270,7 @@ Ollama 以外を使う場合は `base-url` の差し替えだけで動く。
 | 作業記録 | `/work` | 定型作業をマスタから選択して記録する |
 | 日次メモ | `/` | 非定型の気づき・改善を自由記述で残す |
 | 週報 | `/weekly` | 週単位で集計し、下書きを生成する |
+| 評価 | `/evaluation` | 評価期間ごとの材料の充足状況を見る |
 | スキルシート | `/career` | 期間を指定して下書きを生成する。案件・技術マスタの追加と、案件の詳細登録もここで行う |
 | 取り込み | `/import` | 週報システムの CSV を読み込む |
 | 禁止用語辞書 | `/terms` | 伏せる固有名詞を登録・管理する |
@@ -305,7 +322,7 @@ com.example.worklog
 | `abstraction` | OpenAI 互換エンドポイントへの補完リクエスト、疎通確認、思考モード抑制 | `LlmClient`, `LlmStatus`, `LlmProperties` |
 | `pipeline` | マスキングと抽象化を組み合わせた秘匿化の一連の流れ | `SanitizePipeline`, `DailyLogService` |
 | `weekly` | 週境界の算出、作業内容テキストの組み立て、件数集計、報告文の生成、過去週報の取り込み | `ReportWeek`, `WorkContentFormatter`, `WeeklyReportService`, `PerformanceGenerator`, `WeeklyReportCsvParser`, `PastReportService` |
-| `career` | 案件別の期間・件数の集計、経験年数の積み上げ、スキルシートの組み立て | `CareerService`, `CareerTextFormatter`, `AchievementGenerator`, `TechnologyExperience` |
+| `career` | 案件別の期間・件数の集計、経験年数の積み上げ、スキルシートの組み立て、評価材料の集計 | `CareerService`, `CareerTextFormatter`, `AchievementGenerator`, `EvaluationService` |
 | `web` | 画面のコントローラとフォーム | `WorkEntryController`, `WeeklyReportController`, `HomeController` |
 
 依存の向きは `web → pipeline / weekly / career → masking / abstraction → domain`。
@@ -440,6 +457,7 @@ mvnw.cmd test
 | `TechnologyExperienceTest` | 経験年数の積み上げ（月数の数え方、期間が無い案件の除外、無効化後も算入） |
 | `CareerMasterTest` | 案件・技術の追加と有効無効の切り替え、重複登録の抑止 |
 | `CareerMergeTest` | スキルシート上の案件統合、統合時の期間と経験年数の重複防止 |
+| `EvaluationMaterialsTest` | 評価項目ごとの材料集計、材料が無い項目の検出、後からの分類 |
 | `CryptoConfigTest` | 鍵未設定時に起動を拒否し、生成手順を案内すること |
 
 ---
