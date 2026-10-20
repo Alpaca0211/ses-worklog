@@ -11,7 +11,9 @@ import org.springframework.test.context.ActiveProfiles;
         "spring.datasource.url=jdbc:h2:mem:worklogtest;DB_CLOSE_DELAY=-1",
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "worklog.crypto.key=MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=",
-        "worklog.llm.enabled=false"
+        "worklog.llm.enabled=false",
+        // 移行 SQL は PostgreSQL 向け。テストはエンティティからスキーマを作る
+        "spring.flyway.enabled=false"
 })
 @ActiveProfiles("test")
 public abstract class SanitizeTestBase {
