@@ -10,9 +10,16 @@ spring:
 
   jpa:
     hibernate:
-      # スキーマ変更時のデータ移行は config パッケージの移行処理で個別に行う。
-      # Flyway を導入した時点で移行スクリプトへ置き換える
-      ddl-auto: update
+      # スキーマは Flyway が作る。Hibernate には検証だけさせ、変更はさせない。
+      # ずれていれば起動時に落ちるので、エンティティと SQL の乖離に気付ける
+      ddl-auto: validate
+
+  flyway:
+    enabled: true
+    # 既にテーブルがあるデータベースは V1 を適用済みとして記録し、V2 以降だけを流す。
+    # 新規のデータベースでは V1 から順に実行される
+    baseline-on-migrate: true
+    baseline-version: 1
     open-in-view: false
     properties:
       hibernate.format_sql: true

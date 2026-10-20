@@ -12,3 +12,8 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+
+  # 移行 SQL は PostgreSQL 向けにのみ用意している。
+  # H2 は試用のための経路なので、スキーマはエンティティから直接作る
+  flyway:
+    enabled: false

@@ -46,6 +46,16 @@
             <version>0.6.3</version>
         </dependency>
 
+        <!-- スキーマ変更は SQL で履歴管理する。ddl-auto では列の削除も型変更もデータ移行も行われない -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
