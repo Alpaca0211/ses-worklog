@@ -26,6 +26,14 @@
         <b>期末に材料を探すのではなく、期中に足りない項目へ気付くための画面です。</b>
     </p>
 
+    <p class="hint">
+        評価期間（査定月までの半期）:
+        <span th:each="p : ${periods}">
+            <a th:href="@{/evaluation(from=${p.from()},to=${p.to()})}" th:text="${p.label()}">期間</a>
+            <span th:unless="${pStat.last}"> / </span>
+        </span>
+    </p>
+
     <form method="get" th:action="@{/evaluation}" class="fields">
         <label>開始
             <input type="date" name="from" th:value="${from}">
@@ -35,6 +43,18 @@
         </label>
         <div class="actions"><button type="submit" class="secondary">集計する</button></div>
     </form>
+
+    <section th:if="${!summary.unregisteredTerms().isEmpty()}">
+        <h2>辞書に未登録の固有名詞候補</h2>
+        <p class="hint">
+            この画面は生の記録を<b>社内向け</b>にマスクして出しています。案件名などは意図して残していますが、
+            以下は辞書に無いため素通りしています。人名や社名が含まれていれば
+            <a th:href="@{/terms}">禁止用語辞書</a>に登録してください。
+        </p>
+        <ul class="chips">
+            <li th:each="t : ${summary.unregisteredTerms()}" th:text="${t}" class="warn">語</li>
+        </ul>
+    </section>
 
     <section th:if="${summary.hasEmptyItems()}">
         <h2>材料が無い項目</h2>
@@ -46,6 +66,14 @@
 
     <section>
         <h2>項目ごとの材料</h2>
+        <p class="hint">
+            1 件のメモが複数の項目に効くことがあるため、同じ本文が別の項目にも出ます。
+            本文は整形前の記録そのものです（誤字もそのまま残ります）。
+        </p>
+        <p class="hint">
+            この期間に提出した週報: <b th:text="${summary.weeklyReportCount()}">0</b> 件
+            — 評価項目「週報」は提出の量と内容が対象なので、日次メモではなくこの件数が材料になります。
+        </p>
         <div th:each="item : ${summary.items()}" class="dayblock">
             <h3>
                 <span th:text="${item.itemName()}">項目</span>

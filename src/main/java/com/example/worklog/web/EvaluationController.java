@@ -26,9 +26,12 @@ public class EvaluationController {
                         @RequestParam(required = false)
                         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
                         Model model) {
-        LocalDate end = to == null ? LocalDate.now() : to;
-        LocalDate begin = from == null ? end.minusMonths(6).withDayOfMonth(1) : from;
+        // 既定は進行中の半期。査定の単位で見ないと「足りない項目」の意味が変わる
+        EvaluationService.Period current = service.periods(LocalDate.now()).get(0);
+        LocalDate begin = from == null ? current.from() : from;
+        LocalDate end = to == null ? current.to() : to;
 
+        model.addAttribute("periods", service.periods(LocalDate.now()));
         model.addAttribute("from", begin);
         model.addAttribute("to", end);
         model.addAttribute("summary", service.summarize(begin, end));
