@@ -9,6 +9,10 @@ spring:
     include: local
 
   jpa:
+    # 画面描画中に遅延ロードさせない。N+1 と、描画時の予期しない SQL を防ぐ
+    open-in-view: false
+    properties:
+      hibernate.format_sql: true
     hibernate:
       # スキーマは Flyway が作る。Hibernate には検証だけさせ、変更はさせない。
       # ずれていれば起動時に落ちるので、エンティティと SQL の乖離に気付ける
@@ -20,9 +24,6 @@ spring:
     # 新規のデータベースでは V1 から順に実行される
     baseline-on-migrate: true
     baseline-version: 1
-    open-in-view: false
-    properties:
-      hibernate.format_sql: true
 
   thymeleaf:
     cache: false
@@ -42,6 +43,9 @@ worklog:
 
   llm:
     enabled: true
+    # これ以下の長さの入力は抽象化しない。
+    # 情報量が少ないほど LLM は書かれていない内容を補うため
+    min-abstract-length: 60
     # OpenAI 互換エンドポイント（Ollama / vLLM / LM Studio）
     base-url: http://localhost:11434/v1
     api-key: local

@@ -61,6 +61,29 @@
         </form>
     </section>
 
+    <section>
+        <h3>本文の書き直し</h3>
+        <p class="hint">
+            保存し直すと秘匿化は最初からやり直します。打ち間違いの修正や、
+            あとから思い出した内容の追記に使います。
+        </p>
+        <form method="post" th:action="@{/logs/{id}/edit(id=${log.id})}">
+            <label>
+                <textarea name="rawText" rows="4" th:text="${log.rawText}"></textarea>
+            </label>
+            <div class="actions"><button type="submit" class="secondary">書き直して保存</button></div>
+        </form>
+    </section>
+
+    <section>
+        <form method="post" th:action="@{/logs/{id}/delete(id=${log.id})}"
+              onsubmit="return confirm('この記録を削除します。元に戻せません。よろしいですか。');">
+            <div class="actions">
+                <button type="submit" class="tiny">この記録を削除する</button>
+            </div>
+        </form>
+    </section>
+
     <p><a th:href="@{/}">← 戻る</a></p>
 </main>
 </body>

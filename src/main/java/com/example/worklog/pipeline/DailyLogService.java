@@ -4,10 +4,12 @@ import com.example.worklog.domain.DailyLog;
 import com.example.worklog.domain.DailyLogRepository;
 import com.example.worklog.domain.EvaluationItem;
 import com.example.worklog.domain.EvaluationItemRepository;
+import com.example.worklog.domain.SanitizeStatus;
 import com.example.worklog.masking.RiskScanner.RiskHint;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -21,13 +23,27 @@ public class DailyLogService {
     private final EvaluationItemRepository evaluationItemRepository;
     private final ApplicationEventPublisher events;
 
+    /**
+     * これ以下の長さの入力は抽象化しない。
+     * 走り書きを報告向けの文体へ直すのが抽象化の目的であり、既に短く整った一行には
+     * 変換すべき余地が無い。むしろ情報が少ないほど LLM は書かれていない内容を補う。
+     */
+    private final int minAbstractLength;
+
     public DailyLogService(SanitizePipeline pipeline, DailyLogRepository repository,
                            EvaluationItemRepository evaluationItemRepository,
-                           ApplicationEventPublisher events) {
+                           ApplicationEventPublisher events,
+                           @Value("${worklog.llm.min-abstract-length:60}") int minAbstractLength) {
+        this.minAbstractLength = minAbstractLength;
         this.pipeline = pipeline;
         this.repository = repository;
         this.evaluationItemRepository = evaluationItemRepository;
         this.events = events;
+    }
+
+    /** 抽象化を通すべきか。短文は通さない。 */
+    private boolean worthAbstracting(String rawText) {
+        return rawText != null && rawText.strip().length() > minAbstractLength;
     }
 
     @Transactional(readOnly = true)
@@ -54,20 +70,51 @@ public class DailyLogService {
     @Transactional
     public DailyLog record(LocalDate workDate, String rawText, List<Long> evaluationItemIds) {
         SanitizedResult result = pipeline.mask(rawText);
+        boolean abstractable = worthAbstracting(rawText);
         DailyLog entity = new DailyLog(
                 workDate,
                 rawText,
                 result.maskedText(),
                 result.outputText(),
-                result.status(),
+                abstractable ? result.status() : SanitizeStatus.ABSTRACTION_SKIPPED,
                 result.maskedCount(),
                 joinHints(result.riskHints()));
         if (evaluationItemIds != null && !evaluationItemIds.isEmpty()) {
             entity.setEvaluationItems(evaluationItemRepository.findAllById(evaluationItemIds));
         }
         DailyLog saved = repository.save(entity);
-        events.publishEvent(new DailyLogRecorded(saved.getId()));
+        if (abstractable) {
+            events.publishEvent(new DailyLogRecorded(saved.getId()));
+        }
         return saved;
+    }
+
+    /**
+     * 本文を書き直す。秘匿化は最初からやり直す。
+     * 打ち間違いや、あとから思い出した内容を足せないと記録が続かないため。
+     */
+    @Transactional
+    public DailyLog update(Long id, String rawText) {
+        DailyLog entity = find(id);
+        SanitizedResult result = pipeline.mask(rawText);
+        boolean abstractable = worthAbstracting(rawText);
+        entity.rewrite(rawText, result.maskedText(), result.outputText(),
+                abstractable ? result.status() : SanitizeStatus.ABSTRACTION_SKIPPED,
+                result.maskedCount(), joinHints(result.riskHints()));
+        DailyLog saved = repository.save(entity);
+        if (abstractable) {
+            events.publishEvent(new DailyLogRecorded(saved.getId()));
+        }
+        return saved;
+    }
+
+    /** 記録を消す。評価項目の紐づけも併せて外す。 */
+    @Transactional
+    public void delete(Long id) {
+        DailyLog entity = find(id);
+        entity.setEvaluationItems(List.of());
+        repository.save(entity);
+        repository.delete(entity);
     }
 
     /** 保存せずに秘匿化結果だけ確認する（入力画面のプレビュー用）。 */

@@ -111,6 +111,20 @@ public class DailyLog {
     }
 
     /**
+     * 本文の書き直し。秘匿化の結果ごと差し替える。
+     * 生入力を正とするため、部分的な更新は許さない。
+     */
+    public void rewrite(String rawText, String maskedText, String outputText,
+                        SanitizeStatus status, int maskedCount, String riskHints) {
+        this.rawText = rawText;
+        this.maskedText = maskedText;
+        this.outputText = outputText;
+        this.status = status;
+        this.maskedCount = maskedCount;
+        this.riskHints = riskHints;
+    }
+
+    /**
      * 後追いの抽象化が成功したときだけ呼ぶ。
      * rawText と maskedText は一次情報なので書き換えない。
      */

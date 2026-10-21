@@ -18,6 +18,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
@@ -27,6 +28,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
  * 待たせると記録そのものが止まる。保存は決定論的な辞書マスキングだけで確定し、
  * 文章の整形はあとから追いかける。
  */
+@TestPropertySource(properties = "worklog.llm.min-abstract-length=0")
 class DeferredAbstractionTest extends SanitizeTestBase {
 
     private static final LocalDate DAY = LocalDate.of(2026, 10, 21);

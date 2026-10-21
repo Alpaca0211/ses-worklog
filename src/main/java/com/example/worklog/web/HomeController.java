@@ -95,6 +95,28 @@ public class HomeController {
         return "redirect:/logs/" + id;
     }
 
+    /** 本文を書き直す。秘匿化は最初からやり直す。 */
+    @PostMapping("/logs/{id}/edit")
+    public String edit(@PathVariable Long id, @RequestParam String rawText, RedirectAttributes ra) {
+        if (rawText == null || rawText.isBlank()) {
+            ra.addFlashAttribute("message", "本文が空です");
+            return "redirect:/logs/" + id;
+        }
+        DailyLog saved = logService.update(id, rawText);
+        ra.addFlashAttribute("message",
+                "書き直しました（辞書置換 " + saved.getMaskedCount() + " 件 / "
+                        + saved.getStatus().getLabel() + "）");
+        return "redirect:/logs/" + id;
+    }
+
+    /** 記録を消す。取り消せないので画面側で確認を取る。 */
+    @PostMapping("/logs/{id}/delete")
+    public String delete(@PathVariable Long id, RedirectAttributes ra) {
+        logService.delete(id);
+        ra.addFlashAttribute("message", "記録を削除しました");
+        return "redirect:/";
+    }
+
     private String render(Model model) {
         model.addAttribute("logs", logService.recent(20));
         model.addAttribute("dictSize", termService.dictionarySize());
