@@ -9,5 +9,7 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      # スキーマは Flyway が作る。ここで update にすると application.yml の validate を
+      # 上書きしてしまい、エンティティとマイグレーションの乖離に気付けなくなる
+      ddl-auto: validate
     database-platform: org.hibernate.dialect.PostgreSQLDialect
