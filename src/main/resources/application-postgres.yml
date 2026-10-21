@@ -5,7 +5,8 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/worklog
     username: worklog
-    password: worklog
+    # パスワードは application-local.yml（Git 管理外）に置く。
+    # 資格情報をリポジトリへ入れない方針は暗号鍵と同じ
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
