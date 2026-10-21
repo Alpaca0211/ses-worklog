@@ -22,11 +22,20 @@
         <span class="badge">辞書 <b th:text="${dictSize}">0</b> 件</span>
         <span class="badge" th:classappend="${llmStatus.usable} ? 'ok' : 'warn'"
               th:text="${llmStatus.label}">LLM</span>
+        <span class="badge warn" th:if="${pendingCount > 0}">未抽象化 <b th:text="${pendingCount}">0</b> 件</span>
     </div>
 </header>
 
 <main>
     <p class="flash" th:if="${message}" th:text="${message}"></p>
+
+    <form method="post" th:action="@{/logs/abstract-pending}" th:if="${pendingCount > 0}" class="inline">
+        <p class="hint">
+            抽象化が済んでいない記録が <b th:text="${pendingCount}">0</b> 件あります。
+            保存自体は完了しており、辞書マスキングも通っています。
+            <button type="submit" class="tiny secondary">まとめて抽象化する</button>
+        </p>
+    </form>
 
     <form method="post" th:action="@{/logs}" th:object="${form}">
         <label>
@@ -37,9 +46,14 @@
 
         <label>
             業務メモ（そのまま書いてください。固有名詞は後段で除去されます）
-            <textarea rows="5" th:field="*{rawText}"
-                      placeholder="例: A社決済APIのタイムアウト調査。原因はコネクションプール枯渇。田中さんに共有して来週修正PR出す"></textarea>
+            <textarea rows="3" th:field="*{rawText}" autofocus
+                      placeholder="例: 後輩に監視ツールの検索の書き方を聞かれて教えた"></textarea>
         </label>
+        <p class="hint">
+            1 行で構いません。<b>些細なものこそ残す価値があります</b> — 期末には思い出せず、
+            件数がそのまま評価の裏付けになるためです。
+            保存は即時で、文章の整形は裏で後から走ります。
+        </p>
         <p class="error" th:if="${#fields.hasErrors('rawText')}" th:errors="*{rawText}"></p>
 
         <fieldset class="taskfield" th:if="${!evaluationItems.isEmpty()}">

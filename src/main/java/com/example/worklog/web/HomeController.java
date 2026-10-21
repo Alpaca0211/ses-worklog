@@ -3,9 +3,11 @@ package com.example.worklog.web;
 import com.example.worklog.abstraction.AbstractionService;
 import com.example.worklog.domain.DailyLog;
 import com.example.worklog.masking.TermService;
+import com.example.worklog.pipeline.AbstractionBacklog;
 import com.example.worklog.pipeline.DailyLogService;
 import com.example.worklog.pipeline.SanitizedResult;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -19,17 +21,28 @@ public class HomeController {
     private final DailyLogService logService;
     private final TermService termService;
     private final AbstractionService abstractionService;
+    private final AbstractionBacklog abstractionBacklog;
 
     public HomeController(DailyLogService logService, TermService termService,
-                          AbstractionService abstractionService) {
+                          AbstractionService abstractionService,
+                          AbstractionBacklog abstractionBacklog) {
         this.logService = logService;
         this.termService = termService;
         this.abstractionService = abstractionService;
+        this.abstractionBacklog = abstractionBacklog;
     }
 
+    /**
+     * date を受けるのは、保存後も同じ日付のまま次を書けるようにするため。
+     * 細かい記録は 1 日に何件も入れるので、毎回日付を入れ直させない。
+     */
     @GetMapping("/")
-    public String index(Model model) {
-        model.addAttribute("form", new DailyLogForm());
+    public String index(@RequestParam(name = "date", required = false) LocalDate date, Model model) {
+        DailyLogForm form = new DailyLogForm();
+        if (date != null) {
+            form.setWorkDate(date);
+        }
+        model.addAttribute("form", form);
         return render(model);
     }
 
@@ -53,7 +66,15 @@ public class HomeController {
         }
         DailyLog saved = logService.record(form.getWorkDate(), form.getRawText(), evaluationItemIds);
         ra.addFlashAttribute("message",
-                "保存しました（" + saved.getStatus().getLabel() + " / 辞書置換 " + saved.getMaskedCount() + " 件）");
+                "保存しました（辞書置換 " + saved.getMaskedCount() + " 件 / 抽象化は裏で実行中）");
+        return "redirect:/?date=" + form.getWorkDate();
+    }
+
+    /** LLM を止めていた期間などで抽象化が済んでいない記録を、まとめて拾い直す。 */
+    @PostMapping("/logs/abstract-pending")
+    public String abstractPending(RedirectAttributes ra) {
+        int done = abstractionBacklog.abstractPending(50);
+        ra.addFlashAttribute("message", done + " 件を抽象化しました");
         return "redirect:/";
     }
 
@@ -79,6 +100,7 @@ public class HomeController {
         model.addAttribute("dictSize", termService.dictionarySize());
         model.addAttribute("llmStatus", abstractionService.status());
         model.addAttribute("evaluationItems", logService.evaluationItems());
+        model.addAttribute("pendingCount", abstractionBacklog.pendingCount());
         return "index";
     }
 }

@@ -110,6 +110,15 @@ public class DailyLog {
         return riskHints;
     }
 
+    /**
+     * 後追いの抽象化が成功したときだけ呼ぶ。
+     * rawText と maskedText は一次情報なので書き換えない。
+     */
+    public void applyAbstraction(String outputText, SanitizeStatus status) {
+        this.outputText = outputText;
+        this.status = status;
+    }
+
     public List<EvaluationItem> getEvaluationItems() {
         return evaluationItems;
     }

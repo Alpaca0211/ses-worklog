@@ -8,6 +8,7 @@ import com.example.worklog.masking.RiskScanner.RiskHint;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,12 +19,15 @@ public class DailyLogService {
     private final SanitizePipeline pipeline;
     private final DailyLogRepository repository;
     private final EvaluationItemRepository evaluationItemRepository;
+    private final ApplicationEventPublisher events;
 
     public DailyLogService(SanitizePipeline pipeline, DailyLogRepository repository,
-                           EvaluationItemRepository evaluationItemRepository) {
+                           EvaluationItemRepository evaluationItemRepository,
+                           ApplicationEventPublisher events) {
         this.pipeline = pipeline;
         this.repository = repository;
         this.evaluationItemRepository = evaluationItemRepository;
+        this.events = events;
     }
 
     @Transactional(readOnly = true)
@@ -40,10 +44,16 @@ public class DailyLogService {
         repository.save(log);
     }
 
-    /** 秘匿化して保存する。戻り値は保存されたログ。 */
+    /**
+     * 秘匿化して保存する。戻り値は保存されたログ。
+     *
+     * <p>保存は辞書マスキング（決定論的・即時）だけで確定させる。LLM による抽象化は
+     * コミット後に {@link AbstractionBacklog} が追いかける。細かい記録ほど件数が多く、
+     * 1 件ごとに LLM の往復を待たせると記録が続かないため。
+     */
     @Transactional
     public DailyLog record(LocalDate workDate, String rawText, List<Long> evaluationItemIds) {
-        SanitizedResult result = pipeline.sanitize(rawText);
+        SanitizedResult result = pipeline.mask(rawText);
         DailyLog entity = new DailyLog(
                 workDate,
                 rawText,
@@ -55,7 +65,9 @@ public class DailyLogService {
         if (evaluationItemIds != null && !evaluationItemIds.isEmpty()) {
             entity.setEvaluationItems(evaluationItemRepository.findAllById(evaluationItemIds));
         }
-        return repository.save(entity);
+        DailyLog saved = repository.save(entity);
+        events.publishEvent(new DailyLogRecorded(saved.getId()));
+        return saved;
     }
 
     /** 保存せずに秘匿化結果だけ確認する（入力画面のプレビュー用）。 */
